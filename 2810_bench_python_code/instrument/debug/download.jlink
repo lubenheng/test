@@ -1,0 +1,5 @@
+halt
+loadfile internal.bin 
+halt
+q
+exit

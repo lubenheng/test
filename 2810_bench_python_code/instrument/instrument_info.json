@@ -1,0 +1,21 @@
+{
+    "instrument_id_set":
+    {
+        "external_a_channel2": 8,
+        "external_a_channel1": 7,
+        "freq_measure": 6,
+        "loader": 5,
+        "up_down_res": 4,
+		"multimeter_vol": 3,
+		"multimeter_cur": 2,
+        "dac_c_out": 1,
+        "external_a_channel0": 0,
+        "max_channel_num": 40
+    },
+
+    "multimeter_mode":
+    {
+        "current": 0,
+        "voltage": 1
+    }
+}
