@@ -174,7 +174,7 @@ void ADC_MCPWMTrig_Test_Init(void)
 
 	
 	// set seq
-	ADC_SEQx_CFG(ADC_SEQ0,ADC_CH0);
+	ADC_SEQx_CFG(ADC_SEQ0,ADC_CH7);//
 	ADC_SEQx_CFG(ADC_SEQ1,ADC_CH1);
 	ADC_SEQx_CFG(ADC_SEQ2,ADC_CH2);
 	ADC_SEQx_CFG(ADC_SEQ3,ADC_CH3);	
@@ -395,6 +395,7 @@ void ADCTest_Config_OL(void)
 	}
 	#endif
 	gpio_output_set(GPIO_B,GPIO_PIN_7,GPIO_LOW_LEVEL);
+	ADC_GetResult(0);
 }
 
 

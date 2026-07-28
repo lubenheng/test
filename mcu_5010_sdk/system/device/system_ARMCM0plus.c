@@ -36,9 +36,7 @@
 #define  SYSTEM_CLOCK    (XTAL / 2U)
 
 
-uint32_t g_unit_1us = SYS_CORE_CLK/1000000U;
-uint32_t g_unit_ms  = SYS_CORE_CLK/1000U;
-
+volatile uint32_t g_systick_timeout = 0;
 /*----------------------------------------------------------------------------
   System Core Clock Variable
  *----------------------------------------------------------------------------*/
@@ -68,48 +66,64 @@ void SystemInit (void)
 
 
 /**
-*@brief 	 : delay time of 10us unit.
-*@note		 : This delay is implemented by the cost time of the instruction execution, 
-* 				the delay time had been fine tuned and verified on the MDK and IAR, 
-* 				please fine tune it again when change to other Compliers or other
-* 				verions of MDK or IAR
-*@param[in]  : number of delay time unit. unit: 10us
-*@return	 : none
-*/
+ *@brief   SysTick-based microsecond delay (1us per unit).
+ *@note    Uses Cortex-M0+ SysTick COUNTFLAG polling (no interrupt required).
+ *         Works even before __enable_irq() is called.
+ *         Precision is hardware-guaranteed, independent of compiler optimisation.
+ *@param[in]  val : number of 1us units to delay
+ *@return   none
+ */
 void delay_1us(uint32_t val)
 {
-	while (val)
-	{
-		for (uint32_t i=0; i<g_unit_1us; i++)
-		{
-			__NOP();
-		}
+    if (val == 0) return;
 
-		val--;
-	}
+    /* Configure SysTick for 1us tick (polling mode, no interrupt) */
+    uint32_t tick_per_us = SYS_CORE_CLK / 1000000U;
+    SysTick->LOAD = tick_per_us - 1;
+    SysTick->VAL  = 0;
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |   /* HCLK */
+                    SysTick_CTRL_ENABLE_Msk;         /* enabled, no TICKINT */
 
+    while (val)
+    {
+        /* Wait for COUNTFLAG: set when counter reaches 0 */
+        while (!(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk)) {}
+        val--;
+    }
+
+    SysTick->CTRL = 0;   /* disable SysTick */
 }
 
 
 /**
-*@brief 	 : delay time of 1ms unit.
-*@note		 : This delay is implemented by the cost time of the instruction execution, 
-* 				the delay time had been fine tuned and verified on the MDK and IAR, 
-* 				please fine tune it again when change to other Compliers or other
-* 				verions of MDK or IAR
-*@param[in]  : number of delay time unit. unit: 1ms
-*@return	 : none
-*/
+ *@brief   SysTick-based millisecond delay (1ms per unit).
+ *@note    Uses Cortex-M0+ SysTick COUNTFLAG polling (no interrupt required).
+ *         Works even before __enable_irq() is called.
+ *         When SYS_CORE_CLK > 24 MHz, 1ms reload exceeds 24-bit LOAD,
+ *         so we loop 1000 x 1us instead.
+ *@param[in]  val : number of 1ms units to delay
+ *@return   none
+ */
 void delay_ms(uint32_t val)
 {
-	while (val)
-	{
-		for (uint32_t i=0; i<g_unit_ms; i++)
-		{
-			__NOP();
-		}
+    if (val == 0) return;
 
-		val--;
-	}
-	
+    /* Configure SysTick for 1us tick */
+    uint32_t tick_per_us = SYS_CORE_CLK / 1000000U;
+    SysTick->LOAD = tick_per_us - 1;
+    SysTick->VAL  = 0;
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |
+                    SysTick_CTRL_ENABLE_Msk;         /* no TICKINT */
+
+    while (val)
+    {
+        /* 1 ms = 1000 us */
+        for (uint32_t us = 0; us < 1000; us++)
+        {
+            while (!(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk)) {}
+        }
+        val--;
+    }
+
+    SysTick->CTRL = 0;
 }

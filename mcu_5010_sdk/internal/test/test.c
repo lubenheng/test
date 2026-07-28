@@ -37,7 +37,7 @@ extern  uint16_t tx_buf[bufsize];
 
 
 #ifdef ADC_TEST
-#include "ADC.h"
+#include "adc.h"
 #include "adc_test.h"	
 #endif
 

@@ -276,7 +276,7 @@
               <OCR_RVCT4>
                 <Type>1</Type>
                 <StartAddress>0x0</StartAddress>
-                <Size>0x40000</Size>
+                <Size>0x20000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -301,7 +301,7 @@
               <OCR_RVCT9>
                 <Type>0</Type>
                 <StartAddress>0x20000000</StartAddress>
-                <Size>0x20000</Size>
+                <Size>0x2000</Size>
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>CPU_ODS5010</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\system\common;..\..\system\cmsis\include;..\..\system\core;..\..\system\peripherals;..\..\system\hal;..\..\system\device;..\..\internal;..\..\system\device\ODS_5010\include;..\cmdline;..\..\system\core\ODS_5010;..\test;..\..\code\source\0_global_s;..\..\code\source\1_driver_s;..\..\code\source\2_app_s;..\..\code\source\3_user_s;..\..\code\source\4_motlib_s;..\..\code\head\0_global_h;..\..\code\head\1_drive_h;..\..\code\head\2_app_h;..\..\code\head\3_user_h;..\..\code\head\4_motlib_h;..\..\bldc_code\head\0_global_h;..\..\bldc_code\head\1_driver_h;..\..\bldc_code\head\2_user_h;..\..\bldc_code\head\3_motor_h;..\..\bldc_code\source\0_global_s;..\..\bldc_code\source\1_driver_s;..\..\bldc_code\source\2_user_s;..\..\bldc_code\source\3_motor_s;..\..\bldc_code\source\4_lib;..\..\system\peripherals\ADC;..\..\system\peripherals\Math;..\..\system\hal\Math;..\test\HWMath</IncludePath>
+              <IncludePath>..\..\system\common;..\..\system\cmsis\include;..\..\system\core;..\..\system\peripherals;..\..\system\hal;..\..\system\device;..\..\internal;..\..\system\device\ODS_5010\include;..\cmdline;..\..\system\core\ODS_5010;..\test;..\..\code\source\0_global_s;..\..\code\source\1_driver_s;..\..\code\source\2_app_s;..\..\code\source\3_user_s;..\..\code\source\4_motlib_s;..\..\code\head\0_global_h;..\..\code\head\1_drive_h;..\..\code\head\2_app_h;..\..\code\head\3_user_h;..\..\code\head\4_motlib_h;..\..\bldc_code\head\0_global_h;..\..\bldc_code\head\1_driver_h;..\..\bldc_code\head\2_user_h;..\..\bldc_code\head\3_motor_h;..\..\bldc_code\source\0_global_s;..\..\bldc_code\source\1_driver_s;..\..\bldc_code\source\2_user_s;..\..\bldc_code\source\3_motor_s;..\..\bldc_code\source\4_lib;..\..\system\peripherals\Math;..\..\system\hal\Math;..\test\HWMath</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -639,11 +639,6 @@
               <FilePath>..\..\system\peripherals\module.c</FilePath>
             </File>
             <File>
-              <FileName>adc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\system\peripherals\ADC\adc.c</FilePath>
-            </File>
-            <File>
               <FileName>HW_Math.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\system\peripherals\Math\HW_Math.c</FilePath>
@@ -682,6 +677,11 @@
               <FileName>CSA.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\system\peripherals\CSA.c</FilePath>
+            </File>
+            <File>
+              <FileName>adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\system\peripherals\adc.c</FilePath>
             </File>
           </Files>
         </Group>

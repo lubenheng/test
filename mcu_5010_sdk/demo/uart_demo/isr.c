@@ -89,12 +89,16 @@ void PendSV_Handler(void)
  **
  ** \param [in]  none   
  ** \return none
- ** \note
-****************************************************************************/
+ ** \note      Decrements g_systick_timeout for SysTick-based delay functions.
+ ****************************************************************************/
+extern volatile uint32_t g_systick_timeout;
+
 void SysTick_Handler(void)
 {
-
-	
+    if (g_systick_timeout > 0)
+    {
+        g_systick_timeout--;
+    }
 }
 
 /****************************************************************************

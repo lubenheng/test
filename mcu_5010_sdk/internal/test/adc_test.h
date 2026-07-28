@@ -13,7 +13,7 @@
 #define	ADC_CONFIG_CNT_TEST			(0)
 #define	ADC_STATEIO_TEST				(0)
 #define	ADC_STATE_SIG_TEST			(0)
-#define	ADC_SOFTTRIG_TEST				(1)
+#define	ADC_SOFTTRIG_TEST				(0)
 #define ADC_SOFTTRIG_GROUP			(ADC_Sample_Group_0)
 #define	ADC_SOFTTRIG_ERR_TEST		(0)
 

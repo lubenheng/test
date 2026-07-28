@@ -41,7 +41,7 @@ static void uart0_gpio_init(void)
     setting_cfg.gpio_dir = GPIO_DIR_OUTPUT;
     setting_cfg.pull_cfg = GPIO_PULL_DISABLE;
     setting_cfg.gpio_strength = GPIO_STRENGTH_MODE_1;
-   setting_cfg.gpio_interrupt_cfg_info.int_handle = NULL;
+    setting_cfg.gpio_interrupt_cfg_info.int_handle = NULL;
     gpio_init(&setting_cfg);
 }
 /**
@@ -113,7 +113,7 @@ int main(void)
 	/* Add Clock Enable Code Here */
 	gpio_clk_enable();
 	
-  uart_clk_enable();
+	uart_clk_enable();
 		
 #ifdef UART 
 	uart0_gpio_init();
@@ -147,7 +147,7 @@ int main(void)
  
     while(1)
     {
-				cmdline_handle_polling();
+		cmdline_handle_polling();
         gpio_output_set(GPIO_C, GPIO_PIN_6, GPIO_HIGH_LEVEL);
         gpio_output_set(GPIO_C, GPIO_PIN_7, GPIO_HIGH_LEVEL);
         gpio_output_set(GPIO_C, GPIO_PIN_8, GPIO_HIGH_LEVEL);

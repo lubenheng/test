@@ -147,15 +147,19 @@ int main(void)
  
     while(1)
     {
-				cmdline_handle_polling();
+		cmdline_handle_polling();
+    /* 每 100ms 打印一次计数，验证 UART 输出正常 */
+		static uint32_t cnt = 0;
+		cnt++;
+        INFO("UART test OK, cnt = %d\r\n", cnt);
+		delay_ms(100);
         gpio_output_set(GPIO_C, GPIO_PIN_6, GPIO_HIGH_LEVEL);
         gpio_output_set(GPIO_C, GPIO_PIN_7, GPIO_HIGH_LEVEL);
         gpio_output_set(GPIO_C, GPIO_PIN_8, GPIO_HIGH_LEVEL);
-        delay_1us(100);
-
+        delay_ms(100);
         gpio_output_set(GPIO_C, GPIO_PIN_6, GPIO_LOW_LEVEL);
         gpio_output_set(GPIO_C, GPIO_PIN_7, GPIO_LOW_LEVEL);
         gpio_output_set(GPIO_C, GPIO_PIN_8, GPIO_LOW_LEVEL);
-        delay_1us(100);
+        delay_ms(100);
     }
 }
