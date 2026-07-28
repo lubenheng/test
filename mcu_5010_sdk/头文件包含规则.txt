@@ -1,0 +1,24 @@
+﻿1、platform_common.h包含通用头文件，其中还会包含core_cm0plus.h，core_cm0plus.h头文件内部会包含类似
+	#include "sys_config.h"控制软件版本等信息，
+	#include "device_resource.h" 控制芯片类型等信息如ODS_5010/ODS_5011等。
+2、main.c等应用层代码至少包含：platform_common.h/device_resource.h以及其他需要调用模块的<module_name>_hal.h
+3、<module_name>_hal.c中
+    应分别包含以下头文件，且注意先后顺序：platform_common.h/本模块用到的头文件/需要调用其他模块的头文件：
+    #include "platform_common.h"
+	
+	#include "uart_type.h"
+    #include "uart_reg.h"
+    #include "device_resource.h"
+    #include "uart_hal.h"
+    #include "uart.h"
+
+    #include "clock_hal.h"
+4、<module_name>.c中
+    应分别包含以下头文件，且注意先后顺序：platform_common.h/本模块用到的头文件：
+    #include "platform_common.h"
+
+	#include "uart_type.h"
+    #include "uart_reg.h"
+    #include "device_resource.h"
+    #include "uart_hal.h"
+    #include "uart.h"

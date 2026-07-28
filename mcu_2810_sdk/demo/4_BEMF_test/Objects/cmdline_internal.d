@@ -1,0 +1,14 @@
+.\objects\cmdline_internal.o: ..\..\system\cmdline\cmdline_internal.c
+.\objects\cmdline_internal.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\cmdline_internal.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
+.\objects\cmdline_internal.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\cmdline_internal.o: ..\..\system\cmdline\cmdline_internal.h
+.\objects\cmdline_internal.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\cmdline_internal.o: ..\..\system\source\core_cm0.h
+.\objects\cmdline_internal.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\cmdline_internal.o: ..\..\system\source\core_cmInstr.h
+.\objects\cmdline_internal.o: ..\..\system\source\core_cmFunc.h
+.\objects\cmdline_internal.o: ..\..\system\cmdline\test.h
+.\objects\cmdline_internal.o: ..\..\system\source\uart.h
+.\objects\cmdline_internal.o: ..\..\system\cmdline\utility.h
+.\objects\cmdline_internal.o: ..\..\system\cmdline\i2c_cmdline.h

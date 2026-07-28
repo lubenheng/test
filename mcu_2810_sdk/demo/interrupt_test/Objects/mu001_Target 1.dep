@@ -1,0 +1,431 @@
+Dependencies for Project 'mu001', Target 'Target 1': (DO NOT MODIFY !)
+CompilerVersion: 5060960::V5.06 update 7 (build 960)::.\ARMCC
+F (..\..\system\source\acmp.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\acmp.o --omf_browse .\objects\acmp.crf --depend .\objects\acmp.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\acmp.h)(0x6A1E9469)
+F (..\..\system\source\adc.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\adc.o --omf_browse .\objects\adc.crf --depend .\objects\adc.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\adc.h)(0x6A1E9469)
+F (..\..\system\source\ccp.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\ccp.o --omf_browse .\objects\ccp.crf --depend .\objects\ccp.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\ccp.h)(0x6A1E9469)
+F (..\..\system\source\div.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\div.o --omf_browse .\objects\div.crf --depend .\objects\div.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\div.h)(0x6A1E9469)
+F (..\..\system\source\drv.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\drv.o --omf_browse .\objects\drv.crf --depend .\objects\drv.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\drv.h)(0x6A1E9469)
+F (..\..\system\source\foc.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\foc.o --omf_browse .\objects\foc.crf --depend .\objects\foc.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\foc.h)(0x6A1E9469)
+F (..\..\system\source\gpio.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\gpio.o --omf_browse .\objects\gpio.crf --depend .\objects\gpio.d)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+F (..\..\system\source\mdu.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\mdu.o --omf_browse .\objects\mdu.crf --depend .\objects\mdu.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\mdu.h)(0x6A1E9469)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+F (..\..\system\source\pga.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\pga.o --omf_browse .\objects\pga.crf --depend .\objects\pga.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\pga.h)(0x6A1E9469)
+F (..\..\system\source\pmu.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\pmu.o --omf_browse .\objects\pmu.crf --depend .\objects\pmu.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\pmu.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+F (..\..\system\source\qspi.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\qspi.o --omf_browse .\objects\qspi.crf --depend .\objects\qspi.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\qspi.h)(0x6A1E9469)
+F (..\..\system\source\timer.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\timer.o --omf_browse .\objects\timer.crf --depend .\objects\timer.d)
+F (..\..\system\source\uart.c)(0x6A2F67CA)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\uart.o --omf_browse .\objects\uart.crf --depend .\objects\uart.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\source\qspi.h)(0x6A1E9469)
+I (..\..\system\source\wdt.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (..\..\system\source\timer.h)(0x6A1E9469)
+I (..\..\system\source\mdu.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdarg.h)(0x60252376)
+I (..\..\system\source\INIT.h)(0x6A1E9469)
+I (..\..\tools\SEGGER_RTT\SEGGER_RTT.h)(0x6A1E946A)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\hardinit.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\motor_control.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_test.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\0_user_h\main.h)(0x6A1E9469)
+I (..\..\system\hal\GPIO_HAL.H)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+F (..\..\system\source\wdt.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\wdt.o --omf_browse .\objects\wdt.crf --depend .\objects\wdt.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\system_CMSDK_CM0.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\wdt.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+F (..\..\tools\SEGGER_RTT\SEGGER_RTT.c)(0x6A1E946A)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\segger_rtt.o --omf_browse .\objects\segger_rtt.crf --depend .\objects\segger_rtt.d)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+F (..\..\tools\SEGGER_RTT\SEGGER_RTT_printf.c)(0x6A1E946A)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\segger_rtt_printf.o --omf_browse .\objects\segger_rtt_printf.crf --depend .\objects\segger_rtt_printf.d)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+F (..\..\system\source\INIT.c)(0x6A3CC217)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\init.o --omf_browse .\objects\init.crf --depend .\objects\init.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\wdt.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (..\..\system\source\INIT.h)(0x6A1E9469)
+I (..\..\tools\SEGGER_RTT\SEGGER_RTT.h)(0x6A1E946A)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_foc.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\mcu_driver.h)(0x6A1E9469)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\source\adc.h)(0x6A1E9469)
+I (..\..\system\source\timer.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\motor_driver.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_pmsm.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_openloop.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\0_user_h\motor_control.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_hal.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\main.h)(0x6A1E9469)
+F (.\main.c)(0x6A3CA738)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\main.o --omf_browse .\objects\main.crf --depend .\objects\main.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\source\qspi.h)(0x6A1E9469)
+I (..\..\system\source\wdt.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (..\..\system\source\timer.h)(0x6A1E9469)
+I (..\..\system\source\mdu.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdarg.h)(0x60252376)
+I (..\..\system\source\INIT.h)(0x6A1E9469)
+I (..\..\tools\SEGGER_RTT\SEGGER_RTT.h)(0x6A1E946A)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\motor_control.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\hardinit.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\main.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_hal.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+I (..\..\system\hal\adc_hal.h)(0x6A1E9469)
+I (..\..\system\cmdline\cmdline_internal.h)(0x6A1E9469)
+I (..\..\system\source\pmu.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+F (..\..\system\code\source\0_user_s\hardinit.c)(0x6A2B9BCD)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\hardinit.o --omf_browse .\objects\hardinit.crf --depend .\objects\hardinit.d)
+I (..\..\system\code\head\0_user_h\mcu_driver.h)(0x6A1E9469)
+I (..\..\system\source\common.h)(0x6A2F67CA)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\source\adc.h)(0x6A1E9469)
+I (..\..\system\source\timer.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\motor_driver.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_pmsm.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_foc.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_openloop.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\0_user_h\motor_control.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\hardinit.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\main.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+F (..\..\system\code\source\0_user_s\mc_ctrl.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\mc_ctrl.o --omf_browse .\objects\mc_ctrl.crf --depend .\objects\mc_ctrl.d)
+I (..\..\system\code\head\0_user_h\mcu_driver.h)(0x6A1E9469)
+I (..\..\system\source\common.h)(0x6A2F67CA)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\source\adc.h)(0x6A1E9469)
+I (..\..\system\source\timer.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\motor_driver.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_pmsm.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_foc.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_openloop.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\0_user_h\motor_control.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\main.h)(0x6A1E9469)
+F (..\..\system\code\source\0_user_s\mc_foc.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\mc_foc.o --omf_browse .\objects\mc_foc.crf --depend .\objects\mc_foc.d)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\mcu_driver.h)(0x6A1E9469)
+I (..\..\system\source\common.h)(0x6A2F67CA)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\source\adc.h)(0x6A1E9469)
+I (..\..\system\source\timer.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\motor_driver.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_pmsm.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_foc.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_openloop.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\0_user_h\motor_control.h)(0x6A1E9469)
+F (..\..\system\code\source\0_user_s\softinit.c)(0x6A2F67CA)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\softinit.o --omf_browse .\objects\softinit.crf --depend .\objects\softinit.d)
+I (..\..\system\code\head\0_user_h\mcu_driver.h)(0x6A1E9469)
+I (..\..\system\source\common.h)(0x6A2F67CA)
+I (..\..\system\source\gpio.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\source\adc.h)(0x6A1E9469)
+I (..\..\system\source\timer.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\motor_driver.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_pmsm.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_foc.h)(0x6A1E9469)
+I (..\..\system\code\head\1_motlib_h\mc_openloop.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\0_user_h\motor_control.h)(0x6A1E9469)
+F (..\..\system\code\head\0_user_h\para_define.h)(0x6A1E9469)()
+F (..\..\system\code\head\1_motlib_h\mc_pmsm.h)(0x6A1E9469)()
+F (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)()
+F (..\..\system\source\startup_CMSDK_CM0.s)(0x6A1E9469)(--cpu Cortex-M0 --pd "__EVAL SETA 1" -g --apcs=interwork --pd "__MICROLIB SETA 1"-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include--pd "__UVISION_VERSION SETA 536"--list .\listings\startup_cmsdk_cm0.lst --xref -o .\objects\startup_cmsdk_cm0.o --depend .\objects\startup_cmsdk_cm0.d)
+F (..\..\system\source\system_CMSDK_CM0.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\system_cmsdk_cm0.o --omf_browse .\objects\system_cmsdk_cm0.crf --depend .\objects\system_cmsdk_cm0.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+F (..\..\system\hal\gpio_hal.c)(0x6A2F67CA)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\gpio_hal.o --omf_browse .\objects\gpio_hal.crf --depend .\objects\gpio_hal.d)
+I (..\..\system\hal\gpio_hal.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\assert.h)(0x60252378)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stddef.h)(0x6025237E)
+F (..\..\system\cmdline\cmdline_internal.c)(0x6A2F6C7B)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\cmdline_internal.o --omf_browse .\objects\cmdline_internal.crf --depend .\objects\cmdline_internal.d)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (..\..\system\cmdline\cmdline_internal.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (..\..\system\cmdline\test.h)(0x6A2F67CA)
+I (..\..\system\source\uart.h)(0x6A1E9469)
+I (..\..\system\cmdline\utility.h)(0x6A1E9469)
+I (..\..\system\cmdline\i2c_cmdline.h)(0x6A2F6C8A)
+F (..\..\system\cmdline\uart_cmd.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\uart_cmd.o --omf_browse .\objects\uart_cmd.crf --depend .\objects\uart_cmd.d)
+I (..\..\system\cmdline\uart_cmd.h)(0x6A1E9469)
+I (..\..\system\cmdline\utility.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\cmdline\cmdline_internal.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+F (..\..\system\cmdline\utility.c)(0x6A1E9469)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\utility.o --omf_browse .\objects\utility.crf --depend .\objects\utility.d)
+I (..\..\system\cmdline\utility.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\..\system\cmdline\cmdline_internal.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\string.h)(0x6025237E)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\ctype.h)(0x60252376)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stddef.h)(0x6025237E)
+F (..\..\system\cmdline\test.c)(0x6A2F67CA)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\test.o --omf_browse .\objects\test.crf --depend .\objects\test.d)
+I (..\..\system\cmdline\test.h)(0x6A2F67CA)
+F (..\..\system\cmdline\gpio_cmdline.c)(0x6A2F67CA)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\gpio_cmdline.o --omf_browse .\objects\gpio_cmdline.crf --depend .\objects\gpio_cmdline.d)
+I (..\..\system\cmdline\gpio_cmdline.h)(0x6A2F9DB2)
+I (..\..\system\hal\gpio_hal.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+I (..\..\system\cmdline\utility.h)(0x6A1E9469)
+I (..\..\system\cmdline\cmdline_internal.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+F (..\..\system\cmdline\interrupt_cmdline.c)(0x6A3CA811)(--c99 -c --cpu Cortex-M0 -D__EVAL -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal -I ..\..\system\cmdline-ID:\software_install\Keil_v5\Keil_package\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include-D__UVISION_VERSION="536"-o .\objects\interrupt_cmdline.o --omf_browse .\objects\interrupt_cmdline.crf --depend .\objects\interrupt_cmdline.d)
+I (..\..\system\cmdline\interrupt_cmdline.h)(0x6A2F741E)
+I (..\..\system\hal\gpio_hal.h)(0x6A1E9469)
+I (..\..\system\hal\gpio_type.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (..\..\system\hal\gpio_reg.h)(0x6A1E9469)
+I (..\..\system\cmdline\utility.h)(0x6A1E9469)
+I (..\..\system\cmdline\cmdline_internal.h)(0x6A1E9469)
+I (..\..\system\source\CMSDK_CM0.h)(0x6A2F67CA)
+I (..\..\system\source\core_cm0.h)(0x6A1E9469)
+I (..\..\system\source\core_cmInstr.h)(0x6A1E9469)
+I (..\..\system\source\core_cmFunc.h)(0x6A1E9469)
+I (D:\software_install\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
+I (..\..\system\code\head\0_user_h\softinit.h)(0x6A2F6947)
+I (..\..\system\code\head\1_motlib_h\base_define.h)(0x6A1E9469)
+I (..\..\system\code\head\0_user_h\user_control.h)(0x6A1E9469)
+I (..\..\system\cmdline\test.h)(0x6A2F67CA)
+I (..\..\system\source\Common.h)(0x6A2F67CA)
+I (..\..\system\cmdline\gpio_cmdline.h)(0x6A2F9DB2)

@@ -1,0 +1,22 @@
+si SWD
+speed 4000
+device DRV3_MAIN
+connect
+r
+go
+sleep 4
+w4 40000008 0
+halt
+ishalted
+w4    40002400 0
+w4    40005814 03b67878
+w4    40005818 57e40006
+mem32 20000000 4
+mem32 01000000 4
+loadfile 2810.bin
+r                   
+sleep 1            
+go                                  
+exit
+
+

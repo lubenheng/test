@@ -1,0 +1,42 @@
+T3614 000:160.797   SEGGER J-Link V8.98 Log File
+T3614 000:160.987   DLL Compiled: Jan  7 2026 18:18:38
+T3614 000:160.996   Logging started @ 2026-07-23 08:10
+T3614 000:161.003   Process: D:\software_install\Keil_v5\UV4\UV4.exe
+T3614 000:161.014 - 161.010ms 
+T3614 000:161.025 JLINK_SetWarnOutHandler(...)
+T3614 000:161.033 - 0.008ms 
+T3614 000:161.041 JLINK_OpenEx(...)
+T3614 013:851.488   
+  ***** Warning: 
+T3614 013:851.566   Out of sync , resynchronizing...
+T3614 013:851.728   
+  ***** Warning: 
+T3614 013:851.765   Out of sync , resynchronizing...
+T3614 013:851.925   
+  ***** Warning: 
+T3614 013:851.965   Out of sync , resynchronizing...
+T3614 013:852.019   
+  ***** Error: 
+T3614 013:852.051   Cannot connect to J-Link
+T3614 013:852.810 - 13691.766ms returns "Cannot connect to J-Link"
+T3614 013:852.877 
+  ***** Warning: 
+T3614 013:852.910 API Error: API JLINK_GetHardwareVersion function called before JLINKARM_Open()
+T3614 013:852.946 JLINK_GetHardwareVersion()
+T3614 013:855.797   
+  ***** Warning: 
+T3614 013:855.848   Out of sync , resynchronizing...
+T3614 013:855.986   
+  ***** Warning: 
+T3614 013:856.035   Out of sync , resynchronizing...
+T3614 013:856.192   
+  ***** Warning: 
+T3614 013:856.240   Out of sync , resynchronizing...
+T3614 013:856.315   
+  ***** Error: 
+T3614 013:856.362   Cannot connect to J-Link
+T3614 013:857.046 - 4.099ms 
+T3614 015:624.691 JLINK_Close()
+T3614 015:627.315 - 2.624ms
+T3614 015:627.342   
+T3614 015:627.350   Closed

@@ -1,0 +1,78 @@
+T4C90 004:668.376   SEGGER J-Link V8.98 Log File
+T4C90 004:668.618   DLL Compiled: Jan  7 2026 18:18:38
+T4C90 004:668.628   Logging started @ 2026-07-21 06:25
+T4C90 004:668.637   Process: D:\software_install\Keil_v5\UV4\UV4.exe
+T4C90 004:668.646 - 7.127ms 
+T4C90 004:668.657 JLINK_SetWarnOutHandler(...)
+T4C90 004:668.665 - 0.008ms 
+T4C90 004:668.673 JLINK_OpenEx(...)
+T4C90 004:671.360   Firmware: J-Link V9 compiled Dec 13 2022 11:14:50
+T4C90 004:672.907   Firmware: J-Link V9 compiled Dec 13 2022 11:14:50
+T4C90 004:673.039   Decompressing FW timestamp took 114 us
+T4C90 004:679.534   Hardware: V9.70
+T4C90 004:679.561   S/N: 69730340
+T4C90 004:679.572   OEM: SEGGER
+T4C90 004:679.583   Feature(s): RDI, GDB, FlashDL, FlashBP, JFlash
+T4C90 004:680.879   Bootloader: (FW returned invalid version)
+T4C90 004:682.310   TELNET listener socket opened on port 19021
+T4C90 004:687.290   Device "CORTEX-M0" selected.
+T4C90 004:689.043   WEBSRV WEBSRV_Init(): Starting webserver thread(s)
+T4C90 004:689.207   WEBSRV Webserver running on local port 19080
+T4C90 004:689.398   Looking for J-Link GUI Server exe at: D:\software_install\Keil_v5\ARM\Segger\JLinkGUIServer.exe
+T4C90 004:689.530   Looking for J-Link GUI Server exe at: C:\Program Files\SEGGER\JLink\JLinkGUIServer.exe
+T4C90 004:689.597   Forking J-Link GUI Server: C:\Program Files\SEGGER\JLink\JLinkGUIServer.exe
+T4C90 004:695.009   J-Link GUI Server info: "J-Link GUI server V8.98 "
+T4C90 004:695.384 - 26.709ms returns "O.K."
+T4C90 004:695.408 JLINK_GetEmuCaps()
+T4C90 004:695.417 - 0.008ms returns 0xB9FF7BBF
+T4C90 004:695.427 JLINK_TIF_GetAvailable(...)
+T4C90 004:695.960 - 0.532ms 
+T4C90 004:695.985 JLINK_SetErrorOutHandler(...)
+T4C90 004:695.993 - 0.008ms 
+T4C90 004:696.631 JLINK_ExecCommand("ProjectFile = "D:\work_folder\GIT_Folder\mcu_2810_sdk\demo\5_comp_test\JLinkSettings.ini"", ...). 
+T4C90 004:698.198   Device "CORTEX-M0" selected.
+T4C90 004:698.839 - 2.207ms returns 0x00
+T4C90 004:698.873 JLINK_ExecCommand("Device = OCD2810BP64", ...). 
+T4C90 004:699.370   Device "CORTEX-M0" selected.
+T4C90 004:699.867 - 0.978ms returns 0x00
+T4C90 004:699.885 JLINK_ExecCommand("DisableConnectionTimeout", ...). 
+T4C90 004:699.897   ERROR: Unknown command
+T4C90 004:699.909 - 0.014ms returns 0x01
+T4C90 004:699.918 JLINK_GetHardwareVersion()
+T4C90 004:699.925 - 0.007ms returns 97000
+T4C90 004:699.934 JLINK_GetDLLVersion()
+T4C90 004:699.941 - 0.007ms returns 89800
+T4C90 004:699.949 JLINK_GetOEMString(...)
+T4C90 004:699.957 JLINK_GetFirmwareString(...)
+T4C90 004:699.965 - 0.007ms 
+T4C90 004:699.978 JLINK_GetDLLVersion()
+T4C90 004:699.988 - 0.009ms returns 89800
+T4C90 004:699.999 JLINK_GetCompileDateTime()
+T4C90 004:700.009 - 0.010ms 
+T4C90 004:700.024 JLINK_GetFirmwareString(...)
+T4C90 004:700.034 - 0.010ms 
+T4C90 004:700.046 JLINK_GetHardwareVersion()
+T4C90 004:700.057 - 0.010ms returns 97000
+T4C90 004:700.070 JLINK_GetSN()
+T4C90 004:700.082 - 0.012ms returns 69730340
+T4C90 004:700.095 JLINK_GetOEMString(...)
+T4C90 004:700.109 JLINK_TIF_Select(JLINKARM_TIF_SWD)
+T4C90 004:701.840 - 1.729ms returns 0x00
+T4C90 004:701.865 JLINK_HasError()
+T4C90 004:701.876 JLINK_SetSpeed(50)
+T4C90 004:702.200 - 0.323ms 
+T4C90 004:702.520 JLINK_HasError()
+T4C90 004:702.540 JLINK_SetResetType(JLINKARM_RESET_TYPE_NORMAL)
+T4C90 004:702.549 - 0.008ms returns JLINKARM_RESET_TYPE_NORMAL
+T4C90 004:702.557 JLINK_Reset()
+T4C90 005:035.317 - 332.757ms 
+T4C90 005:035.365 JLINK_GetId()
+T4C90 005:370.325 - 334.950ms returns 0x00000000
+T4C90 005:370.388 JLINK_GetId()
+T4C90 005:704.913 - 334.523ms returns 0x00000000
+T4C90 005:708.543 JLINK_GetFirmwareString(...)
+T4C90 005:708.573 - 0.030ms 
+T4C90 245:059.840 JLINK_Close()
+T4C90 245:072.080 - 12.244ms
+T4C90 245:072.128   
+T4C90 245:072.128   Closed

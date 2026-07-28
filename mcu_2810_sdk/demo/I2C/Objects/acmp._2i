@@ -1,0 +1,4 @@
+--c99 -c --cpu Cortex-M0 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ..\..\system\source -I ..\..\tools\SEGGER_RTT -I ..\..\system\code\head\0_user_h -I ..\..\system\code\head\1_motlib_h -I ..\..\system\hal
+-ID:\keil\pack\ORIENT-CHIP\OCD2810_DFP\0.1\Device\Include
+-D__UVISION_VERSION="536"
+-o .\objects\acmp.o --omf_browse .\objects\acmp.crf --depend .\objects\acmp.d --feedback ".\Objects\mu001.fed" "..\..\system\source\acmp.c"

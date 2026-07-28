@@ -1,0 +1,12 @@
+.\objects\qspi.o: ..\..\system\source\qspi.c
+.\objects\qspi.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\qspi.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\qspi.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\qspi.o: ..\..\system\source\core_cm0.h
+.\objects\qspi.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\qspi.o: ..\..\system\source\core_cmInstr.h
+.\objects\qspi.o: ..\..\system\source\core_cmFunc.h
+.\objects\qspi.o: ..\..\system\source\system_CMSDK_CM0.h
+.\objects\qspi.o: ..\..\system\source\core_cm0.h
+.\objects\qspi.o: ..\..\system\source\Common.h
+.\objects\qspi.o: ..\..\system\source\qspi.h

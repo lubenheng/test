@@ -1,0 +1,315 @@
+Component: ARM Compiler 5.06 update 7 (build 960) Tool: armlink [4d3601]
+
+==============================================================================
+
+Section Cross References
+
+    mdu.o(i.MDU_ArctanFun) refers to uart.o(i.printk) for printk
+    mdu.o(i.MDU_LeftSignedMultiplyFun) refers to uart.o(i.printk) for printk
+    mdu.o(i.MDU_LpfFun) refers to uart.o(i.printk) for printk
+    mdu.o(i.MDU_ParkFun) refers to uart.o(i.printk) for printk
+    mdu.o(i.MDU_SignedMultiplyFun) refers to uart.o(i.printk) for printk
+    mdu.o(i.MDU_UnsignedDivFun) refers to ffltui.o(.text) for __aeabi_ui2f
+    mdu.o(i.MDU_UnsignedDivFun) refers to f2d.o(.text) for __aeabi_f2d
+    mdu.o(i.MDU_UnsignedDivFun) refers to dscalb.o(.text) for __ARM_scalbn
+    mdu.o(i.MDU_UnsignedDivFun) refers to uart.o(i.printk) for printk
+    mdu.o(i.MDU_UnsignedMultiplyFun) refers to uart.o(i.printk) for printk
+    qspi.o(i.wait4FlashReady) refers to qspi.o(i.wait4CtrlerReady) for wait4CtrlerReady
+    qspi.o(i.xip_4x_init) refers to qspi.o(i.wait4FlashReady) for wait4FlashReady
+    qspi.o(i.xip_4x_init) refers to qspi.o(i.wait4CtrlerReady) for wait4CtrlerReady
+    uart.o(i.printk) refers to printfa.o(i.__0vsprintf) for vsprintf
+    uart.o(i.printk) refers to uart.o(.bss) for .bss
+    uart.o(i.printk) refers to uart.o(.data) for .data
+    uart.o(i.uart0Rx_init) refers to uart.o(.data) for .data
+    uart.o(i.uart0_Handler) refers to uart.o(.data) for .data
+    uart.o(i.uart0_Handler) refers to uart.o(.bss) for .bss
+    uart.o(i.uart1Tx_init) refers to gpio_hal.o(i.gpio_alt_func_cfg) for gpio_alt_func_cfg
+    wdt.o(i.appWDTOpen) refers to wdt.o(i.feedWDT) for feedWDT
+    wdt.o(i.bootWDTOpen) refers to wdt.o(i.feedWDT) for feedWDT
+    init.o(i.HardFault_Handler) refers to wdt.o(i.rldWDT) for rldWDT
+    init.o(i.HardFault_Handler) refers to wdt.o(i.bootWDTOpen) for bootWDTOpen
+    init.o(i.HardFault_Handler) refers to uart.o(i.printk) for printk
+    init.o(i.adc_Handler) refers to init.o(.data) for .data
+    init.o(i.dcif_Handler) refers to mc_foc.o(i.FOC_Control_Process) for FOC_Control_Process
+    init.o(i.dcif_Handler) refers to init.o(i.__ARM_common_switch8) for __ARM_common_switch8
+    init.o(i.dcif_Handler) refers to mc_ctrl.o(i.UartView) for UartView
+    init.o(i.dcif_Handler) refers to init.o(.data) for .data
+    init.o(i.dcif_Handler) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    init.o(i.dcif_Handler) refers to mc_ctrl.o(.bss) for stru_Para
+    init.o(i.tim3_Handler) refers to mc_ctrl.o(i.MC_MotorSpeed_Calc) for MC_MotorSpeed_Calc
+    main.o(i.GPIO_Demo) refers to main.o(i.GPIO_Toggle_Test) for GPIO_Toggle_Test
+    main.o(i.GPIO_Input_Test) refers to gpio_hal.o(i.gpio_init) for gpio_init
+    main.o(i.GPIO_Input_Test) refers to gpio_hal.o(i.gpio_output_set) for gpio_output_set
+    main.o(i.GPIO_Input_Test) refers to gpio_hal.o(i.gpio_input_get) for gpio_input_get
+    main.o(i.GPIO_Input_Test) refers to gpio_hal.o(i.gpio_toggle) for gpio_toggle
+    main.o(i.GPIO_Input_Test) refers to main.o(i.delay_ms) for delay_ms
+    main.o(i.GPIO_Input_Test) refers to softinit.o(i.delay_ms) for delay_ms
+    main.o(i.GPIO_Input_Test) refers to main.o(.data) for .data
+    main.o(i.GPIO_Output_Test) refers to gpio_hal.o(i.gpio_init) for gpio_init
+    main.o(i.GPIO_Output_Test) refers to gpio_hal.o(i.gpio_output_set) for gpio_output_set
+    main.o(i.GPIO_Toggle_Test) refers to gpio_hal.o(i.gpio_init) for gpio_init
+    main.o(i.GPIO_Toggle_Test) refers to gpio_hal.o(i.gpio_output_set) for gpio_output_set
+    main.o(i.GPIO_Toggle_Test) refers to gpio_hal.o(i.gpio_toggle) for gpio_toggle
+    main.o(i.GPIO_Toggle_Test) refers to main.o(i.delay_ms) for delay_ms
+    main.o(i.GPIO_Toggle_Test) refers to softinit.o(i.delay_ms) for delay_ms
+    main.o(i.IO_interupt_Test) refers to gpio_hal.o(i.gpio_init) for gpio_init
+    main.o(i.IO_interupt_Test) refers to main.o(i.key_callback) for key_callback
+    main.o(i.int1_Handler) refers to gpio_hal.o(i.gpio_int_irq_handler) for gpio_int_irq_handler
+    main.o(i.key_callback) refers to gpio_hal.o(i.gpio_toggle) for gpio_toggle
+    main.o(i.key_callback) refers to main.o(.data) for .data
+    main.o(i.main) refers to system_cmsdk_cm0.o(i.soft_delay_1ms) for soft_delay_1ms
+    main.o(i.main) refers to main.o(i.GPIO_Demo) for GPIO_Demo
+    hardinit.o(i.ADC_Init) refers to hardinit.o(i.NVIC_SetPriority) for NVIC_SetPriority
+    hardinit.o(i.Driver_init) refers to hardinit.o(i.NVIC_SetPriority) for NVIC_SetPriority
+    hardinit.o(i.FOC_Init) refers to fscalb.o(.text) for __ARM_scalbnf
+    hardinit.o(i.FOC_Init) refers to ffixui.o(.text) for __aeabi_f2uiz
+    hardinit.o(i.FOC_Init) refers to d2f.o(.text) for __aeabi_d2f
+    hardinit.o(i.FOC_Init) refers to fmul.o(.text) for __aeabi_fmul
+    hardinit.o(i.FOC_Init) refers to fdiv.o(.text) for __aeabi_fdiv
+    hardinit.o(i.FOC_Init) refers to ffixi.o(.text) for __aeabi_f2iz
+    hardinit.o(i.FOC_Init) refers to f2d.o(.text) for __aeabi_f2d
+    hardinit.o(i.FOC_Init) refers to ddiv.o(.text) for __aeabi_ddiv
+    hardinit.o(i.FOC_Init) refers to dfixui.o(.text) for __aeabi_d2uiz
+    hardinit.o(i.System_Init) refers to softinit.o(i.MC_Para_Init) for MC_Para_Init
+    hardinit.o(i.UART0_Init) refers to uart.o(i.uart0Tx_init) for uart0Tx_init
+    hardinit.o(i.UART0_Init) refers to uart.o(i.uart0Rx_init) for uart0Rx_init
+    hardinit.o(i.timer3_init) refers to hardinit.o(i.NVIC_SetPriority) for NVIC_SetPriority
+    mc_ctrl.o(i.FOC_SinCos_Calc) refers to mc_ctrl.o(.constdata) for .constdata
+    mc_ctrl.o(i.Get_ADC_Offset) refers to softinit.o(i.DelayTime_ms) for DelayTime_ms
+    mc_ctrl.o(i.Get_ADC_Offset) refers to mc_ctrl.o(.bss) for .bss
+    mc_ctrl.o(i.Get_ADC_Offset) refers to init.o(.data) for Iu_d
+    mc_ctrl.o(i.Get_ADC_Offset) refers to mc_ctrl.o(.data) for .data
+    mc_ctrl.o(i.MC_MotorSpeed_Calc) refers to mc_ctrl.o(.data) for .data
+    mc_ctrl.o(i.Sw_to_Transition_Check) refers to init.o(.data) for g_smo_speed_short
+    mc_ctrl.o(i.Sw_to_Transition_Check) refers to mc_ctrl.o(.bss) for .bss
+    mc_ctrl.o(i.Sw_to_Transition_Check) refers to mc_ctrl.o(.data) for .data
+    mc_ctrl.o(i.Transition_to_Run_Check) refers to mc_ctrl.o(.bss) for .bss
+    mc_ctrl.o(i.Transition_to_Run_Check) refers to mc_ctrl.o(.data) for .data
+    mc_ctrl.o(i.User_Motor_FRControl) refers to mc_ctrl.o(.data) for .data
+    mc_foc.o(i.FOC_ControlPara_Init) refers to mc_ctrl.o(i.FOC_RotorPosition_Init) for FOC_RotorPosition_Init
+    mc_foc.o(i.FOC_ControlPara_Init) refers to mc_ctrl.o(.bss) for stru_Para
+    mc_foc.o(i.FOC_ControlPara_Init) refers to mc_ctrl.o(.bss) for stru_FOC_Start
+    mc_foc.o(i.FOC_ControlPara_Init) refers to mc_foc.o(.data) for .data
+    mc_foc.o(i.FOC_ControlPara_Init) refers to init.o(.data) for g_smo_speed_short
+    mc_foc.o(i.FOC_Control_Align) refers to mc_ctrl.o(.bss) for stru_FOC
+    mc_foc.o(i.FOC_Control_Align) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Align) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Brake) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Charge) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Charge) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Init) refers to mc_foc.o(i.FOC_ControlPara_Init) for FOC_ControlPara_Init
+    mc_foc.o(i.FOC_Control_Init) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Init) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Process) refers to init.o(i.__ARM_common_switch8) for __ARM_common_switch8
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Init) for FOC_Control_Init
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Charge) for FOC_Control_Charge
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Wind) for FOC_Control_Wind
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Align) for FOC_Control_Align
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Start) for FOC_Control_Start
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Switch) for FOC_Control_Switch
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Transition) for FOC_Control_Transition
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Run) for FOC_Control_Run
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Stop) for FOC_Control_Stop
+    mc_foc.o(i.FOC_Control_Process) refers to mc_foc.o(i.FOC_Control_Brake) for FOC_Control_Brake
+    mc_foc.o(i.FOC_Control_Process) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Run) refers to mc_foc.o(.data) for .data
+    mc_foc.o(i.FOC_Control_Run) refers to mc_ctrl.o(.bss) for stru_Para
+    mc_foc.o(i.FOC_Control_Run) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Run) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Start) refers to mc_foc.o(.data) for .data
+    mc_foc.o(i.FOC_Control_Start) refers to mc_ctrl.o(.bss) for stru_Para
+    mc_foc.o(i.FOC_Control_Start) refers to mc_ctrl.o(.bss) for stru_FOC_Start
+    mc_foc.o(i.FOC_Control_Start) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Start) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Stop) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Switch) refers to mc_ctrl.o(i.Sw_to_Transition_Check) for Sw_to_Transition_Check
+    mc_foc.o(i.FOC_Control_Switch) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Switch) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Transition) refers to mc_ctrl.o(i.Transition_to_Run_Check) for Transition_to_Run_Check
+    mc_foc.o(i.FOC_Control_Transition) refers to mc_ctrl.o(.bss) for stru_FOC
+    mc_foc.o(i.FOC_Control_Transition) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Transition) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Control_Wind) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Control_Wind) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    mc_foc.o(i.FOC_Wind_Check) refers to mc_ctrl.o(.data) for Flag
+    mc_foc.o(i.FOC_Wind_Check) refers to mc_ctrl.o(.data) for MOTOR_STATE
+    softinit.o(i.Clear_rx_fifo) refers to uart.o(i.printk) for printk
+    softinit.o(i.MC_FOCPara_Init) refers to mc_ctrl.o(.bss) for stru_FOC_Start
+    softinit.o(i.MC_FOCPara_Init) refers to mc_ctrl.o(.bss) for stru_Para
+    softinit.o(i.MC_Para_Init) refers to softinit.o(i.MC_FOCPara_Init) for MC_FOCPara_Init
+    startup_cmsdk_cm0.o(RESET) refers to startup_cmsdk_cm0.o(STACK) for __initial_sp
+    startup_cmsdk_cm0.o(RESET) refers to startup_cmsdk_cm0.o(.text) for Reset_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.HardFault_Handler) for HardFault_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.int0_Handler) for int0_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.int1_Handler) for int1_Handler
+    startup_cmsdk_cm0.o(RESET) refers to main.o(i.int1_Handler) for int1_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.int2_Handler) for int2_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.int3_Handler) for int3_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.int4_Handler) for int4_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.pin_Handler) for pin_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.rtc_Handler) for rtc_Handler
+    startup_cmsdk_cm0.o(RESET) refers to uart.o(i.uart0_Handler) for uart0_Handler
+    startup_cmsdk_cm0.o(RESET) refers to uart.o(i.uart1_Handler) for uart1_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.i2c0_Handler) for i2c0_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.tim3_Handler) for tim3_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.fgif_Handler) for fgif_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.dcif_Handler) for dcif_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.adc_Handler) for adc_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.cmp0if_Handler) for cmp0if_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.cmp1if_Handler) for cmp1if_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.cmp2if_Handler) for cmp2if_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.cmp3if_Handler) for cmp3if_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.cmp4if_Handler) for cmp4if_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.tim5_Handler) for tim5_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.spi_Handler) for spi_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.tsd_Handler) for tsd_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.uvlo_Handler) for uvlo_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.fault_Handler) for fault_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.i2c1_Handler) for i2c1_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.foc_Handler) for foc_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.swd_Handler) for swd_Handler
+    startup_cmsdk_cm0.o(RESET) refers to init.o(i.tim6_Handler) for tim6_Handler
+    startup_cmsdk_cm0.o(.text) refers to system_cmsdk_cm0.o(i.SystemInit) for SystemInit
+    startup_cmsdk_cm0.o(.text) refers to entry.o(.ARM.Collect$$$$00000000) for __main
+    system_cmsdk_cm0.o(i.SystemCoreClockUpdate) refers to system_cmsdk_cm0.o(.data) for .data
+    system_cmsdk_cm0.o(i.SystemInit) refers to system_cmsdk_cm0.o(.data) for .data
+    gpio_hal.o(i.gpio_alt_func_cfg) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_alt_func_cfg) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_alt_func_cfg) refers to init.o(i.__ARM_common_switch8) for __ARM_common_switch8
+    gpio_hal.o(i.gpio_alt_func_cfg) refers to gpio_hal.o(i.gpio_analog_mode_cfg) for gpio_analog_mode_cfg
+    gpio_hal.o(i.gpio_analog_mode_cfg) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_analog_mode_cfg) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_direction_cfg) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_direction_cfg) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_alt_func_cfg) for gpio_alt_func_cfg
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_analog_mode_cfg) for gpio_analog_mode_cfg
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_input_mode_cfg) for gpio_input_mode_cfg
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_pull_cfg) for gpio_pull_cfg
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_strength_cfg) for gpio_strength_cfg
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_direction_cfg) for gpio_direction_cfg
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_int_config) for gpio_int_config
+    gpio_hal.o(i.gpio_init) refers to gpio_hal.o(i.gpio_output_set) for gpio_output_set
+    gpio_hal.o(i.gpio_input_get) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_input_get) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_input_mode_cfg) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_input_mode_cfg) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_int_bit_pos) refers to init.o(i.__ARM_common_switch8) for __ARM_common_switch8
+    gpio_hal.o(i.gpio_int_clear_flag) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_int_clear_flag) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_int_clear_flag) refers to gpio_hal.o(i.gpio_int_bit_pos) for gpio_int_bit_pos
+    gpio_hal.o(i.gpio_int_config) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_int_config) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_int_config) refers to gpio_hal.o(i.gpio_int_bit_pos) for gpio_int_bit_pos
+    gpio_hal.o(i.gpio_int_config) refers to gpio_hal.o(i.gpio_int_clear_flag) for gpio_int_clear_flag
+    gpio_hal.o(i.gpio_int_config) refers to gpio_hal.o(.bss) for .bss
+    gpio_hal.o(i.gpio_int_disable) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_int_disable) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_int_disable) refers to gpio_hal.o(i.gpio_int_bit_pos) for gpio_int_bit_pos
+    gpio_hal.o(i.gpio_int_enable) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_int_enable) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_int_enable) refers to gpio_hal.o(i.gpio_int_bit_pos) for gpio_int_bit_pos
+    gpio_hal.o(i.gpio_int_get_flag) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_int_get_flag) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_int_get_flag) refers to gpio_hal.o(i.gpio_int_bit_pos) for gpio_int_bit_pos
+    gpio_hal.o(i.gpio_int_irq_handler) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_int_irq_handler) refers to gpio_hal.o(.bss) for .bss
+    gpio_hal.o(i.gpio_output_set) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_output_set) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_pull_cfg) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_pull_cfg) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_strength_cfg) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_strength_cfg) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_toggle) refers to gpio_hal.o(i.gpio_port_valid) for gpio_port_valid
+    gpio_hal.o(i.gpio_toggle) refers to gpio_hal.o(i.gpio_pin_valid) for gpio_pin_valid
+    gpio_hal.o(i.gpio_toggle) refers to gpio_hal.o(i.gpio_output_set) for gpio_output_set
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry10a.o(.ARM.Collect$$$$0000000F) for __rt_final_cpp
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry11a.o(.ARM.Collect$$$$00000011) for __rt_final_exit
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry12b.o(.ARM.Collect$$$$0000000E) for __rt_lib_shutdown_fini
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry7b.o(.ARM.Collect$$$$00000008) for _main_clock
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry8b.o(.ARM.Collect$$$$0000000A) for _main_cpp_init
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry9a.o(.ARM.Collect$$$$0000000B) for _main_init
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry5.o(.ARM.Collect$$$$00000004) for _main_scatterload
+    entry.o(.ARM.Collect$$$$00000000) refers (Special) to entry2.o(.ARM.Collect$$$$00000001) for _main_stk
+    printfa.o(i.__0fprintf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0fprintf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0fprintf) refers to fputc.o(i.fputc) for fputc
+    printfa.o(i.__0printf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0printf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0printf) refers to fputc.o(i.fputc) for fputc
+    printfa.o(i.__0printf) refers to stdout.o(.data) for __stdout
+    printfa.o(i.__0snprintf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0snprintf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0snprintf) refers to printfa.o(i._snputc) for _snputc
+    printfa.o(i.__0sprintf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0sprintf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0sprintf) refers to printfa.o(i._sputc) for _sputc
+    printfa.o(i.__0vfprintf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0vfprintf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0vfprintf) refers to fputc.o(i.fputc) for fputc
+    printfa.o(i.__0vprintf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0vprintf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0vprintf) refers to fputc.o(i.fputc) for fputc
+    printfa.o(i.__0vprintf) refers to stdout.o(.data) for __stdout
+    printfa.o(i.__0vsnprintf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0vsnprintf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0vsnprintf) refers to printfa.o(i._snputc) for _snputc
+    printfa.o(i.__0vsprintf) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i.__0vsprintf) refers to printfa.o(i._printf_core) for _printf_core
+    printfa.o(i.__0vsprintf) refers to printfa.o(i._sputc) for _sputc
+    printfa.o(i._fp_digits) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i._fp_digits) refers to dmul.o(.text) for __aeabi_dmul
+    printfa.o(i._fp_digits) refers to ddiv.o(.text) for __aeabi_ddiv
+    printfa.o(i._fp_digits) refers to cdrcmple.o(.text) for __aeabi_cdrcmple
+    printfa.o(i._fp_digits) refers to dadd.o(.text) for __aeabi_dadd
+    printfa.o(i._fp_digits) refers to dfixul.o(.text) for __aeabi_d2ulz
+    printfa.o(i._fp_digits) refers to uldiv.o(.text) for __aeabi_uldivmod
+    printfa.o(i._printf_core) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i._printf_core) refers to printfa.o(i._printf_pre_padding) for _printf_pre_padding
+    printfa.o(i._printf_core) refers to uldiv.o(.text) for __aeabi_uldivmod
+    printfa.o(i._printf_core) refers to printfa.o(i._printf_post_padding) for _printf_post_padding
+    printfa.o(i._printf_core) refers to printfa.o(i._fp_digits) for _fp_digits
+    printfa.o(i._printf_core) refers to uidiv.o(.text) for __aeabi_uidivmod
+    printfa.o(i._printf_post_padding) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i._printf_pre_padding) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i._snputc) refers (Special) to iusefp.o(.text) for __I$use$fp
+    printfa.o(i._sputc) refers (Special) to iusefp.o(.text) for __I$use$fp
+    fmul.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    fdiv.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    fdiv.o(.text) refers to fepilogue.o(.text) for _float_round
+    fscalb.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    ddiv.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    ddiv.o(.text) refers to depilogue.o(.text) for _double_round
+    dscalb.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    ffltui.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    ffltui.o(.text) refers to fepilogue.o(.text) for _float_epilogue
+    ffixi.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    ffixui.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    dfixui.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    dfixui.o(.text) refers to llushr.o(.text) for __aeabi_llsr
+    f2d.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    d2f.o(.text) refers (Special) to iusefp.o(.text) for __I$use$fp
+    d2f.o(.text) refers to fepilogue.o(.text) for _float_round
+    entry2.o(.ARM.Collect$$$$00000001) refers to entry2.o(.ARM.Collect$$$$00002712) for __lit__00000000
+    entry2.o(.ARM.Collect$$$$00002712) refers to startup_cmsdk_cm0.o(STACK) for __initial_sp
+    entry2.o(__vectab_stack_and_reset_area) refers to startup_cmsdk_cm0.o(STACK) for __initial_sp
+    entry2.o(__vectab_stack_and_reset_area) refers to entry.o(.ARM.Collect$$$$00000000) for __main
+    entry5.o(.ARM.Collect$$$$00000004) refers to init.o(.text) for __scatterload
+    entry9a.o(.ARM.Collect$$$$0000000B) refers to main.o(i.main) for main
+    entry9b.o(.ARM.Collect$$$$0000000C) refers to main.o(i.main) for main
+    fputc.o(i.fputc) refers (Special) to iusesemip.o(.text) for __I$use$semihosting$fputc
+    fputc.o(i.fputc) refers (Special) to semi.o(.text) for __semihosting_library_function
+    uldiv.o(.text) refers to llushr.o(.text) for __aeabi_llsr
+    uldiv.o(.text) refers to llshl.o(.text) for __aeabi_llsl
+    depilogue.o(.text) refers to depilogue.o(i.__ARM_clz) for __ARM_clz
+    depilogue.o(.text) refers to llshl.o(.text) for __aeabi_llsl
+    depilogue.o(.text) refers to llushr.o(.text) for __aeabi_llsr
+    dadd.o(.text) refers to llshl.o(.text) for __aeabi_llsl
+    dadd.o(.text) refers to llsshr.o(.text) for __aeabi_lasr
+    dadd.o(.text) refers to depilogue.o(.text) for _double_epilogue
+    dmul.o(.text) refers to depilogue.o(.text) for _double_epilogue
+    dfixul.o(.text) refers to llushr.o(.text) for __aeabi_llsr
+    dfixul.o(.text) refers to llshl.o(.text) for __aeabi_llsl
+    init.o(.text) refers to entry5.o(.ARM.Collect$$$$00000004) for __main_after_scatterload
+

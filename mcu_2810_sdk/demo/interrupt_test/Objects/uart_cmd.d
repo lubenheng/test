@@ -1,0 +1,11 @@
+.\objects\uart_cmd.o: ..\..\system\cmdline\uart_cmd.c
+.\objects\uart_cmd.o: ..\..\system\cmdline\uart_cmd.h
+.\objects\uart_cmd.o: ..\..\system\cmdline\utility.h
+.\objects\uart_cmd.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\uart_cmd.o: ..\..\system\cmdline\cmdline_internal.h
+.\objects\uart_cmd.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\uart_cmd.o: ..\..\system\source\core_cm0.h
+.\objects\uart_cmd.o: ..\..\system\source\core_cmInstr.h
+.\objects\uart_cmd.o: ..\..\system\source\core_cmFunc.h
+.\objects\uart_cmd.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\uart_cmd.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h

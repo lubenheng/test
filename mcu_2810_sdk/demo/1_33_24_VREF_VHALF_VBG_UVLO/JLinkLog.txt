@@ -1,0 +1,42 @@
+T42E8 011:082.253   SEGGER J-Link V8.98 Log File
+T42E8 011:082.472   DLL Compiled: Jan  7 2026 18:18:38
+T42E8 011:082.482   Logging started @ 2026-07-27 07:53
+T42E8 011:082.490   Process: D:\software_install\Keil_v5\UV4\UV4.exe
+T42E8 011:082.502 - 11082.498ms 
+T42E8 011:082.515 JLINK_SetWarnOutHandler(...)
+T42E8 011:082.524 - 0.009ms 
+T42E8 011:082.533 JLINK_OpenEx(...)
+T42E8 011:098.893   
+  ***** Warning: 
+T42E8 011:098.934   Out of sync , resynchronizing...
+T42E8 011:099.242   
+  ***** Warning: 
+T42E8 011:099.264   Out of sync , resynchronizing...
+T42E8 011:099.626   
+  ***** Warning: 
+T42E8 011:099.646   Out of sync , resynchronizing...
+T42E8 011:099.767   
+  ***** Error: 
+T42E8 011:099.788   Cannot connect to J-Link
+T42E8 011:100.006 - 17.472ms returns "Cannot connect to J-Link"
+T42E8 011:100.318 
+  ***** Warning: 
+T42E8 011:100.338 API Error: API JLINK_GetHardwareVersion function called before JLINKARM_Open()
+T42E8 011:100.355 JLINK_GetHardwareVersion()
+T42E8 011:102.295   
+  ***** Warning: 
+T42E8 011:102.328   Out of sync , resynchronizing...
+T42E8 011:102.531   
+  ***** Warning: 
+T42E8 011:102.550   Out of sync , resynchronizing...
+T42E8 011:102.814   
+  ***** Warning: 
+T42E8 011:102.838   Out of sync , resynchronizing...
+T42E8 011:102.932   
+  ***** Error: 
+T42E8 011:102.945   Cannot connect to J-Link
+T42E8 011:103.163 - 2.807ms 
+T42E8 025:051.672 JLINK_Close()
+T42E8 025:052.430 - 0.758ms
+T42E8 025:052.456   
+T42E8 025:052.464   Closed

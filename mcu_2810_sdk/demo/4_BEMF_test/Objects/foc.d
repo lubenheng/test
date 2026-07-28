@@ -1,0 +1,12 @@
+.\objects\foc.o: ..\..\system\source\foc.c
+.\objects\foc.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\foc.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\foc.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\foc.o: ..\..\system\source\core_cm0.h
+.\objects\foc.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\foc.o: ..\..\system\source\core_cmInstr.h
+.\objects\foc.o: ..\..\system\source\core_cmFunc.h
+.\objects\foc.o: ..\..\system\source\system_CMSDK_CM0.h
+.\objects\foc.o: ..\..\system\source\core_cm0.h
+.\objects\foc.o: ..\..\system\source\Common.h
+.\objects\foc.o: ..\..\system\source\foc.h

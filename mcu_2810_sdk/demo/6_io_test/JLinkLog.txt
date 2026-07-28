@@ -1,0 +1,129 @@
+T68D4 000:336.452   SEGGER J-Link V8.98 Log File
+T68D4 000:336.686   DLL Compiled: Jan  7 2026 18:18:38
+T68D4 000:336.695   Logging started @ 2026-07-10 06:04
+T68D4 000:336.710   Process: D:\software_install\Keil_v5\UV4\UV4.exe
+T68D4 000:336.722 - 336.718ms 
+T68D4 000:336.736 JLINK_SetWarnOutHandler(...)
+T68D4 000:336.744 - 0.010ms 
+T68D4 000:336.753 JLINK_OpenEx(...)
+T68D4 000:349.227   Firmware: J-Link V9 compiled Dec 13 2022 11:14:50
+T68D4 000:350.493   Firmware: J-Link V9 compiled Dec 13 2022 11:14:50
+T68D4 000:350.693   Decompressing FW timestamp took 156 us
+T68D4 000:357.109   Hardware: V9.70
+T68D4 000:357.254   S/N: 69730340
+T68D4 000:357.269   OEM: SEGGER
+T68D4 000:357.283   Feature(s): RDI, GDB, FlashDL, FlashBP, JFlash
+T68D4 000:358.697   Bootloader: (FW returned invalid version)
+T68D4 000:360.557   TELNET listener socket opened on port 19021
+T68D4 000:360.774   WEBSRV WEBSRV_Init(): Starting webserver thread(s)
+T68D4 000:361.073   WEBSRV Webserver running on local port 19080
+T68D4 000:361.261   Looking for J-Link GUI Server exe at: D:\software_install\Keil_v5\ARM\Segger\JLinkGUIServer.exe
+T68D4 000:361.506   Looking for J-Link GUI Server exe at: C:\Program Files\SEGGER\JLink\JLinkGUIServer.exe
+T68D4 000:361.698   Forking J-Link GUI Server: C:\Program Files\SEGGER\JLink\JLinkGUIServer.exe
+T68D4 000:964.096   Failed to connect to J-Link GUI Server.
+T68D4 000:964.148 - 627.387ms returns "O.K."
+T68D4 000:964.171 JLINK_GetEmuCaps()
+T68D4 000:964.184 - 0.011ms returns 0xB9FF7BBF
+T68D4 000:964.195 JLINK_TIF_GetAvailable(...)
+T68D4 000:964.602 - 0.406ms 
+T68D4 000:964.630 JLINK_SetErrorOutHandler(...)
+T68D4 000:964.640 - 0.010ms 
+T68D4 000:964.667 JLINK_ExecCommand("ProjectFile = "D:\work_folder\GIT_Folder\mcu_2810_sdk\demo\6_io_test\JLinkSettings.ini"", ...). 
+T68D4 000:984.091   Ref file found at: D:\software_install\Keil_v5\ARM\Segger\JLinkDevices.ref
+T68D4 000:984.227   REF file references invalid XML file: D:\software_install\SEGGER\JLink\JLinkDevices.xml
+T68D4 000:985.672   Device "CORTEX-M0" selected.
+T68D4 000:986.141 - 21.475ms returns 0x00
+T68D4 000:986.171 JLINK_ExecCommand("Device = OCD2810BP64", ...). 
+T68D4 000:986.423   Device "CORTEX-M0" selected.
+T68D4 000:986.837 - 0.652ms returns 0x00
+T68D4 000:986.857 JLINK_ExecCommand("DisableConnectionTimeout", ...). 
+T68D4 000:986.874   ERROR: Unknown command
+T68D4 000:986.888 - 0.019ms returns 0x01
+T68D4 000:986.899 JLINK_GetHardwareVersion()
+T68D4 000:986.913 - 0.012ms returns 97000
+T68D4 000:986.924 JLINK_GetDLLVersion()
+T68D4 000:986.936 - 0.011ms returns 89800
+T68D4 000:986.955 JLINK_GetOEMString(...)
+T68D4 000:986.971 JLINK_GetFirmwareString(...)
+T68D4 000:986.983 - 0.011ms 
+T68D4 000:986.997 JLINK_GetDLLVersion()
+T68D4 000:987.007 - 0.009ms returns 89800
+T68D4 000:987.017 JLINK_GetCompileDateTime()
+T68D4 000:987.027 - 0.009ms 
+T68D4 000:987.040 JLINK_GetFirmwareString(...)
+T68D4 000:987.049 - 0.009ms 
+T68D4 000:987.061 JLINK_GetHardwareVersion()
+T68D4 000:987.071 - 0.009ms returns 97000
+T68D4 000:987.083 JLINK_GetSN()
+T68D4 000:987.093 - 0.009ms returns 69730340
+T68D4 000:987.104 JLINK_GetOEMString(...)
+T68D4 000:987.120 JLINK_TIF_Select(JLINKARM_TIF_SWD)
+T68D4 000:988.261 - 1.142ms returns 0x00
+T68D4 000:988.283 JLINK_HasError()
+T68D4 000:988.298 JLINK_SetSpeed(50)
+T68D4 000:988.570 - 0.272ms 
+T68D4 000:988.906 JLINK_HasError()
+T68D4 000:988.922 JLINK_SetResetType(JLINKARM_RESET_TYPE_NORMAL)
+T68D4 000:988.930 - 0.008ms returns JLINKARM_RESET_TYPE_NORMAL
+T68D4 000:988.942 JLINK_Reset()
+T68D4 000:995.582   Found SW-DP with ID 0x0BB11477
+T68D4 001:014.737   Old FW that does not support reading DPIDR via DAP jobs
+T68D4 001:023.830   DPv0 detected
+T68D4 001:023.875   CoreSight SoC-400 or earlier
+T68D4 001:023.924   Scanning AP map to find all available APs
+T68D4 001:030.334   AP[1]: Stopped AP scan as end of AP map has been reached
+T68D4 001:030.377   AP[0]: AHB-AP (IDR: 0x04770021, ADDR: 0x00000000)
+T68D4 001:030.393   Iterating through AP map to find AHB-AP to use
+T68D4 001:040.675   AP[0]: Core found
+T68D4 001:040.822   AP[0]: AHB-AP ROM base: 0xE00FF000
+T68D4 001:045.938   CPUID register: 0x410CC200. Implementer code: 0x41 (ARM)
+T68D4 001:046.009   Found Cortex-M0 r0p0, Little endian.
+T68D4 001:046.513   -- Max. mem block: 0x00010BB0
+T68D4 001:048.113   CPU_ReadMem(4 bytes @ 0xE000EDF0)
+T68D4 001:054.124   CPU_WriteMem(4 bytes @ 0xE000EDF0)
+T68D4 001:060.244   CPU_ReadMem(4 bytes @ 0xE0002000)
+T68D4 001:066.196   FPUnit: 4 code (BP) slots and 0 literal slots
+T68D4 001:066.247   CPU_ReadMem(4 bytes @ 0xE000EDFC)
+T68D4 001:072.243   CPU_WriteMem(4 bytes @ 0xE000EDFC)
+T68D4 001:078.430   CPU_ReadMem(4 bytes @ 0xE0001000)
+T68D4 001:084.466   CPU_WriteMem(4 bytes @ 0xE0001000)
+T68D4 001:090.512   CoreSight components:
+T68D4 001:090.541   ROMTbl[0] @ E00FF000
+T68D4 001:090.564   CPU_ReadMem(64 bytes @ 0xE00FF000)
+T68D4 001:110.501   CPU_ReadMem(32 bytes @ 0xE000EFE0)
+T68D4 001:123.005   [0][0]: E000E000 CID B105E00D PID 000BB008 SCS
+T68D4 001:123.093   CPU_ReadMem(32 bytes @ 0xE0001FE0)
+T68D4 001:135.604   [0][1]: E0001000 CID B105E00D PID 000BB00A DWT
+T68D4 001:135.675   CPU_ReadMem(32 bytes @ 0xE0002FE0)
+T68D4 001:148.165   [0][2]: E0002000 CID B105E00D PID 000BB00B FPB
+T68D4 001:148.314   JLINK_GetResetTypeDesc
+T68D4 001:148.333   - 0.018ms 
+T68D4 001:148.357   Reset type: NORMAL (https://kb.segger.com/J-Link_Reset_Strategies)
+T68D4 001:148.377   CPU is running
+T68D4 001:148.406   CPU_WriteMem(4 bytes @ 0xE000EDF0)
+T68D4 001:154.621   CPU is running
+T68D4 001:154.702   CPU_WriteMem(4 bytes @ 0xE000EDFC)
+T68D4 001:160.814   Reset: Halt core after reset via DEMCR.VC_CORERESET.
+T68D4 001:162.518   Reset: Reset device via AIRCR.SYSRESETREQ.
+T68D4 001:162.549   CPU is running
+T68D4 001:162.566   CPU_WriteMem(4 bytes @ 0xE000ED0C)
+T68D4 001:224.966   CPU_ReadMem(4 bytes @ 0xE000EDF0)
+T68D4 001:230.874   CPU_ReadMem(4 bytes @ 0xE000EDF0)
+T68D4 001:337.293   CPU_WriteMem(4 bytes @ 0xE000EDFC)
+T68D4 001:349.895   CPU_ReadMem(4 bytes @ 0xE000EDF0)
+T68D4 001:456.384   CPU_WriteMem(4 bytes @ 0xE0002000)
+T68D4 001:462.526   CPU_ReadMem(4 bytes @ 0xE000EDFC)
+T68D4 001:468.628   CPU_ReadMem(4 bytes @ 0xE0001000)
+T68D4 001:474.717   CPU_WriteMem(4 bytes @ 0xE0001000)
+T68D4 001:480.854 - 491.911ms 
+T68D4 001:480.908 JLINK_GetId()
+T68D4 001:482.143 - 1.235ms returns 0x0BB11477
+T68D4 001:487.763 JLINK_GetFirmwareString(...)
+T68D4 001:487.809 - 0.045ms 
+T68D4 003:653.292 JLINK_Close()
+T68D4 003:653.636   CPU_ReadMem(4 bytes @ 0xE0001000)
+T68D4 003:659.659   CPU_WriteMem(4 bytes @ 0xE0001000)
+T68D4 003:665.872   CPU_WriteMem(4 bytes @ 0xE0001004)
+T68D4 003:710.785 - 57.492ms
+T68D4 003:710.832   
+T68D4 003:710.841   Closed

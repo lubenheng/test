@@ -1,0 +1,12 @@
+.\objects\adc.o: ..\..\system\source\adc.c
+.\objects\adc.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\adc.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\adc.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\adc.o: ..\..\system\source\core_cm0.h
+.\objects\adc.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\adc.o: ..\..\system\source\core_cmInstr.h
+.\objects\adc.o: ..\..\system\source\core_cmFunc.h
+.\objects\adc.o: ..\..\system\source\system_CMSDK_CM0.h
+.\objects\adc.o: ..\..\system\source\core_cm0.h
+.\objects\adc.o: ..\..\system\source\Common.h
+.\objects\adc.o: ..\..\system\source\adc.h

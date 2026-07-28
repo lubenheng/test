@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<lksscope appVersion="v1.2.5">
+    <params>
+        <param name="linkType" value="0"/>
+        <param name="jClock" value="5000000"/>
+        <param name="uClock" value="1000000"/>
+        <param name="commPort" value="COM4"/>
+        <param name="commBaud" value="9600"/>
+        <param name="bleName" value=""/>
+        <param name="localIP" value=""/>
+        <param name="localPort" value=""/>
+        <param name="remoteIP" value=""/>
+        <param name="remotePort" value=""/>
+        <param name="rttAddr" value="20000000"/>
+        <param name="rttFreq" value="16000"/>
+        <param name="sampleInterval" value="10"/>
+        <param name="uiInterval" value="50"/>
+        <param name="maxPoint" value="100"/>
+        <param name="checkAxf" value="1"/>
+    </params>
+    <layouts>
+        <param name="geometry" value="AdnQywADAAAAAALtAAAARgAABlkAAANcAAAC7gAAAGUAAAZYAAADWwAAAAAAAAAAB4AAAALuAAAAZQAABlgAAANb"/>
+        <param name="state" value="AAAA/wAAAAD9AAAAAgAAAAAAAAGJAAADf/wCAAAAAvsAAAAIepdT41v8gioBAAAAUgAAAcAAAAAAAAAAAPwAAAIWAAABuwAAAAAA////+gAAAAACAAAAAvsAAAAIW/xRZVPYkc8BAAAAAP////8AAAAAAAAAAPsAAAAKgepbmk5JU9iRzwEAAAAA/////wAAAAAAAAAAAAAAAQAABfMAAAN//AIAAAAG+wAAAAwAUgBUAFRUfU7kiEwAAAAAAP////8AAAAAAAAAAPsAAAAKAFIAVABUZXBjbgAAAAAA/////wAAAAAAAAAA+wAAAAZbxFtYVmgAAAAAAP////8AAAAAAAAAAPsAAAAIj9CITGXlX9cAAAAAAP////8AAAAAAAAAAPwAAABOAAADhQAAAAAA/////AEAAAAC+wAAAAZm8n6/ADABAAAByQAABAcAAAAAAAAAAPsAAAAGZXBQPAAwAQAABdQAAAGsAAAAAAAAAAD7AAAACGVwY25mPnk6AQAAAFIAAAN/AAAAAAAAAAAAAANrAAAClgAAAAQAAAAEAAAACAAAAAj8AAAAAQAAAAIAAAACAAAADgB0AG8AbwBsAEIAYQByAQAAAAD/////AAAAAAAAAAAAAAASAHQAbwBvAGwAQgBhAHIAXwAyAQAAAMT/////AAAAAAAAAAA="/>
+    </layouts>
+    <tabs curPage="0">
+        <tab geometry="AdnQywADAAAAAAAAAAAAAAAAAmQAAAJnAAAAAAAAAAD//////////wAAAAAAAAAAB4AAAAAAAAAAAAAAAmQAAAJn" state="AAAA/wAAAAD9AAAAAgAAAAEAAAXtAAAA1vwCAAAAA/sAAAAIj9CITGXlX9cAAAAAAP////8AAABdAP////sAAAAMAFIAVABUVH1O5IhMAAAAAAD/////AAAAqAD////7AAAACgBSAFQAVGVwY24AAAAAAP////8AAAEPAP///wAAAAMAAAJlAAACaPwBAAAAAfwAAAAAAAACZQAAAMoA/////AEAAAAC+wAAAAZm8n6/ADABAAAAAAAAAQEAAABjAP////sAAAAGZXBQPAAwAQAAAQUAAAFgAAAAYwD///8AAAJlAAAAAAAAAAQAAAAEAAAACAAAAAj8AAAAAA==" checked="1" title="标签页0"/>
+    </tabs>
+    <forms>
+        <form type="0" title="导航窗口"/>
+        <form type="1" lv-width="150,100,100,100,100" title="自定义参数"/>
+        <form mapFile="C:/Users/Lenovo/Desktop/12.12/mcu_2810_sdk/mcu_2810_sdk/a8_sensless_type2/keil/Objects/mu001.axf" type="2" lv-width="213,100,100,100,320,100,100,204" title="导入参数"/>
+        <form page="0" type="3" visible="0" title="运行日志" floating="0"/>
+        <form page="0" type="4" visible="0" title="RTT命令行" floating="0"/>
+        <form max="500" page="0" type="5" scrollType="0" scatterStyle="1" trigName="" xCount="1000" visible="0" title="RTT数据" floating="0" trigType="0" trigValue="0" min="-500" xTag="0" subMode="0" autoRange="1" lineStyle="1"/>
+        <form page="-1" type="6" visible="0" title="Form" floating="0"/>
+        <form page="0" type="7" lv-width="252,150,100,100,100,100,100,120,100,100,100" visible="1" title="数值0" floating="0">
+            <var name="stru_Para.Run.Iq_Final_Curr" desc="stru_Para.Run.Iq_Final_Curr" color="" addr="0x200001d2" showType="Unsigned" interval="10" formula=""/>
+            <var name="stru_Para.Run.Id_req" desc="stru_Para.Run.Id_req" color="" addr="0x200001d6" showType="Signed" interval="10" formula=""/>
+            <var name="stru_Para.Run.Id_Final_Curr" desc="stru_Para.Run.Id_Final_Curr" color="" addr="0x200001d4" showType="Signed" interval="10" formula=""/>
+            <var name="stru_Para.Sw.sw_to_run_cnt" desc="stru_Para.Sw.sw_to_run_cnt" color="" addr="0x200001c4" showType="Unsigned" interval="10" formula=""/>
+            <var name="MOTOR_STATE" desc="MOTOR_STATE" color="" addr="0x20000076" showType="Enum" interval="10" formula=""/>
+            <var name="stru_Para.Run.theta_compensation_tmp" desc="stru_Para.Run.theta_compensation_tmp" color="" addr="0x200001de" showType="Unsigned" interval="10" formula=""/>
+            <var name="g_smo_speed_short" desc="g_smo_speed_short" color="" addr="0x20000030" showType="Signed" interval="10" formula=""/>
+            <var name="TailWindDetect.TailWindSpeed" desc="TailWindDetect.TailWindSpeed" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.MotorDir" desc="TailWindDetect.MotorDir" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.AngleState" desc="TailWindDetect.AngleState" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.MotorTailWindState" desc="TailWindDetect.MotorTailWindState" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.SpeedStoreNum" desc="TailWindDetect.SpeedStoreNum" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.SpeedCountTimer" desc="TailWindDetect.SpeedCountTimer" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.SpeedTimerClearStatus" desc="TailWindDetect.SpeedTimerClearStatus" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.TempThailWindSpeedBase" desc="TailWindDetect.TempThailWindSpeedBase" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.SpeedOverFlowStatus" desc="TailWindDetect.SpeedOverFlowStatus" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.ShakeTimes" desc="TailWindDetect.ShakeTimes" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.TailWindBrakeCount" desc="TailWindDetect.TailWindBrakeCount" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.AntiFlag" desc="TailWindDetect.AntiFlag" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="TailWindDetect.ThetaStep" desc="TailWindDetect.ThetaStep" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="smo_speed_short" desc="smo_speed_short" color="" addr="" showType="Signed" interval="10" formula=""/>
+            <var name="smo_speed_short1" desc="smo_speed_short1" color="" addr="" showType="Signed" interval="10" formula=""/>
+            <var name="DQKP_TailWind_TEST" desc="DQKP_TailWind_TEST" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="DQKI_TailWind_TEST" desc="DQKI_TailWind_TEST" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="DQKP_PLL_TEST" desc="DQKP_PLL_TEST" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="DQKI_PLL_TEST" desc="DQKI_PLL_TEST" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDStepTime.[0]" desc="RSDDetect.RSDStepTime.[0]" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDStepTime.[1]" desc="RSDDetect.RSDStepTime.[1]" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDStepTime.[2]" desc="RSDDetect.RSDStepTime.[2]" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDStepTime.[3]" desc="RSDDetect.RSDStepTime.[3]" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDTimes" desc="RSDDetect.RSDTimes" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDPeriod" desc="RSDDetect.RSDPeriod" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDCount" desc="RSDDetect.RSDCount" color="" addr="" showType="Signed" interval="10" formula=""/>
+            <var name="RSDDetect.RSDState" desc="RSDDetect.RSDState" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDSpeed" desc="RSDDetect.RSDSpeed" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDangle" desc="RSDDetect.RSDangle" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDDir" desc="RSDDetect.RSDDir" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDFlag" desc="RSDDetect.RSDFlag" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDCCWFlag" desc="RSDDetect.RSDCCWFlag" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDCCWTimes" desc="RSDDetect.RSDCCWTimes" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDSpeedBase" desc="RSDDetect.RSDSpeedBase" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDCCWSBRCnt" desc="RSDDetect.RSDCCWSBRCnt" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDStep" desc="RSDDetect.RSDStep" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+            <var name="RSDDetect.RSDBRFlag" desc="RSDDetect.RSDBRFlag" color="" addr="" showType="Unsigned" interval="10" formula=""/>
+        </form>
+        <form trigValue="0" title="曲线0" trigName="" min="-500" lineStyle="1" subMode="0" max="500" scatterStyle="1" floating="0" page="0" refType="0" refValue="0" xCount="1" refName="" type="8" visible="1" filterType="1" autoRange="1" trigType="0" scrollType="0" xTag="0">
+            <var name="TailWindDetect.TailWindSpeed" desc="TailWindDetect.TailWindSpeed" color="#ff00ff" subPlot="0"/>
+            <var name="smo_speed_short" desc="smo_speed_short" color="#ff0000" subPlot="0"/>
+            <var name="g_smo_speed_short" desc="g_smo_speed_short" color="#00ff00" subPlot="0"/>
+        </form>
+    </forms>
+</lksscope>

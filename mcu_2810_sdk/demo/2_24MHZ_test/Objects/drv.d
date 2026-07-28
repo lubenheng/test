@@ -1,0 +1,12 @@
+.\objects\drv.o: ..\..\system\source\drv.c
+.\objects\drv.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\drv.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\drv.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\drv.o: ..\..\system\source\core_cm0.h
+.\objects\drv.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\drv.o: ..\..\system\source\core_cmInstr.h
+.\objects\drv.o: ..\..\system\source\core_cmFunc.h
+.\objects\drv.o: ..\..\system\source\system_CMSDK_CM0.h
+.\objects\drv.o: ..\..\system\source\core_cm0.h
+.\objects\drv.o: ..\..\system\source\Common.h
+.\objects\drv.o: ..\..\system\source\drv.h

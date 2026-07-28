@@ -1,0 +1,15 @@
+!*.c
+!*.h
+!*.S
+*.yi.wang
+*.jack
+*.scvd
+Listings
+Objects
+*.dep
+Debug
+check_git_log_info.txt
+gcc_build
+.vscode
+JLinkLog.txt
+JLinkSettings.ini

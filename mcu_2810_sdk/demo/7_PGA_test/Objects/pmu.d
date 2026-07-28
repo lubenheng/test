@@ -1,0 +1,10 @@
+.\objects\pmu.o: ..\..\system\source\pmu.c
+.\objects\pmu.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\pmu.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\pmu.o: ..\..\system\source\Common.h
+.\objects\pmu.o: ..\..\system\source\pmu.h
+.\objects\pmu.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\pmu.o: ..\..\system\source\core_cm0.h
+.\objects\pmu.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\pmu.o: ..\..\system\source\core_cmInstr.h
+.\objects\pmu.o: ..\..\system\source\core_cmFunc.h

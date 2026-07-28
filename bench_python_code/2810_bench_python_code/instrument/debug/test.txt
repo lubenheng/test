@@ -1,0 +1,10 @@
+get 0x20000000 8
+set 0x20000000 5 5 5 5 5 5 5 5
+get 0x20000000 8
+get 0x20000000 8
+0 0
+get 0x20000000 8
+
+
+D:\chang\tool\mx02_common_cmd_20250616\gpio_demo.bin
+

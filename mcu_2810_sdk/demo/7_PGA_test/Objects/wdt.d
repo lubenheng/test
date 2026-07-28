@@ -1,0 +1,13 @@
+.\objects\wdt.o: ..\..\system\source\wdt.c
+.\objects\wdt.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\wdt.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\wdt.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\wdt.o: ..\..\system\source\core_cm0.h
+.\objects\wdt.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\wdt.o: ..\..\system\source\core_cmInstr.h
+.\objects\wdt.o: ..\..\system\source\core_cmFunc.h
+.\objects\wdt.o: ..\..\system\source\system_CMSDK_CM0.h
+.\objects\wdt.o: ..\..\system\source\core_cm0.h
+.\objects\wdt.o: ..\..\system\source\Common.h
+.\objects\wdt.o: ..\..\system\source\wdt.h
+.\objects\wdt.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h

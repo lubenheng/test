@@ -1,0 +1,13 @@
+.\objects\utility.o: ..\..\system\cmdline\utility.c
+.\objects\utility.o: ..\..\system\cmdline\utility.h
+.\objects\utility.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\utility.o: ..\..\system\cmdline\cmdline_internal.h
+.\objects\utility.o: ..\..\system\source\CMSDK_CM0.h
+.\objects\utility.o: ..\..\system\source\core_cm0.h
+.\objects\utility.o: ..\..\system\source\core_cmInstr.h
+.\objects\utility.o: ..\..\system\source\core_cmFunc.h
+.\objects\utility.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\utility.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
+.\objects\utility.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\objects\utility.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\ctype.h
+.\objects\utility.o: D:\software_install\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h

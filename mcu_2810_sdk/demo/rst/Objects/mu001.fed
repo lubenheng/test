@@ -1,0 +1,176 @@
+;#<FEEDBACK># ARM Linker, 5060960: Last Updated: Sat Mar 28 12:45:05 2026
+;VERSION 0.2
+;FILE acmp.o
+__asm___6_acmp_c____REV16 <= USED 0
+__asm___6_acmp_c____REVSH <= USED 0
+;FILE adc.o
+__asm___5_adc_c____REV16 <= USED 0
+__asm___5_adc_c____REVSH <= USED 0
+;FILE ccp.o
+__asm___5_ccp_c____REV16 <= USED 0
+__asm___5_ccp_c____REVSH <= USED 0
+;FILE div.o
+__asm___5_div_c____REV16 <= USED 0
+__asm___5_div_c____REVSH <= USED 0
+;FILE drv.o
+__asm___5_drv_c____REV16 <= USED 0
+__asm___5_drv_c____REVSH <= USED 0
+;FILE foc.o
+__asm___5_foc_c____REV16 <= USED 0
+__asm___5_foc_c____REVSH <= USED 0
+;FILE gpio_hal.o
+gpio_input_get <= USED 0
+gpio_int_disable <= USED 0
+gpio_int_enable <= USED 0
+gpio_int_get_flag <= USED 0
+;FILE hardinit.o
+ACMP0_Init <= USED 0
+ACMP1_Init <= USED 0
+ADCLDO_Init <= USED 0
+ADC_Init <= USED 0
+CCP_Capture_Init <= USED 0
+CCP_PWM_GPIO <= USED 0
+CCP_PWM_Init <= USED 0
+DAC_Init <= USED 0
+EPWM_R1_Init <= USED 0
+EPWM_R2_Init <= USED 0
+HWDIV_Div <= USED 0
+HWDIV_Init <= USED 0
+PGA0_Init <= USED 0
+PGA1_Init <= USED 0
+PGA2_Init <= USED 0
+PORT_Init <= USED 0
+SysClock_Init <= USED 0
+SysTick_Init <= USED 0
+System_Init <= USED 0
+TMR0_Iint <= USED 0
+TMR1_Init <= USED 0
+UART0_Init <= USED 0
+UART1_init <= USED 0
+__asm___10_hardinit_c_862a8b03____REV16 <= USED 0
+__asm___10_hardinit_c_862a8b03____REVSH <= USED 0
+;FILE init.o
+GetCurrentOffset <= USED 0
+__asm___6_INIT_c_Iu_d____REV16 <= USED 0
+__asm___6_INIT_c_Iu_d____REVSH <= USED 0
+;FILE main.o
+GPIO_Demo <= USED 0
+GPIO_Input_Test <= USED 0
+GPIO_Output_Test <= USED 0
+IO_interupt_Test <= USED 0
+__asm___6_main_c_delay_ms____REV16 <= USED 0
+__asm___6_main_c_delay_ms____REVSH <= USED 0
+;FILE mc_ctrl.o
+ADC_Sample <= USED 0
+FOC_SinCos_Calc <= USED 0
+Fault_Clear_RestartTimes <= USED 0
+Fault_ReStart_Process <= USED 0
+Fault_Show_Source <= USED 0
+MC_Clear_FaultMessage <= USED 0
+MC_MotorInit_Process <= USED 0
+MC_Ramp_Control <= USED 0
+MC_Speed_Control <= USED 0
+Motor_Actual_Calculate <= USED 0
+Power_Loop_Ctrl <= USED 0
+Speed_Loop_Ctrl <= USED 0
+SysTick_1ms <= USED 0
+System_Control <= USED 0
+System_Modules_off <= USED 0
+Temp_Table_Search <= USED 0
+User_MotorSpeed_Set <= USED 0
+User_Motor_FRControl <= USED 0
+User_Motor_Off <= USED 0
+User_Motor_On <= USED 0
+__asm___9_mc_ctrl_c_65c20547____REV16 <= USED 0
+__asm___9_mc_ctrl_c_65c20547____REVSH <= USED 0
+;FILE mc_foc.o
+FOC_Brake_Control <= USED 0
+FOC_Control_BLDC_Start <= USED 0
+FOC_Overcurrent_Check <= USED 0
+FOC_Read_Current <= USED 0
+FOC_Start_Check <= USED 0
+FOC_Start_Init <= USED 0
+FOC_Stop_Check <= USED 0
+FOC_Wind_Check <= USED 0
+__asm___8_mc_foc_c_8f2f28e5____REV16 <= USED 0
+__asm___8_mc_foc_c_8f2f28e5____REVSH <= USED 0
+;FILE mdu.o
+MDU_ArctanFun <= USED 0
+MDU_LeftSignedMultiplyFun <= USED 0
+MDU_LpfFun <= USED 0
+MDU_ParkFun <= USED 0
+MDU_SignedMultiplyFun <= USED 0
+MDU_UnsignedDivFun <= USED 0
+MDU_UnsignedMultiplyFun <= USED 0
+__asm___5_mdu_c_460aa8a0____REV16 <= USED 0
+__asm___5_mdu_c_460aa8a0____REVSH <= USED 0
+;FILE pga.o
+__asm___5_pga_c____REV16 <= USED 0
+__asm___5_pga_c____REVSH <= USED 0
+;FILE pmu.o
+__asm___5_pmu_c____REV16 <= USED 0
+__asm___5_pmu_c____REVSH <= USED 0
+;FILE qspi.o
+__asm___6_qspi_c_230363a7____REV16 <= USED 0
+__asm___6_qspi_c_230363a7____REVSH <= USED 0
+wait4CtrlerReady <= USED 0
+wait4FlashReady <= USED 0
+xip_4x_init <= USED 0
+;FILE softinit.o
+ADC_ClearAllInt_Flag <= USED 0
+ADC_TGSAMP_CONFIG <= USED 0
+BEMF_ParaInit <= USED 0
+BLDC_BEMF_Start_Config <= USED 0
+Clear_rx_fifo <= USED 0
+DelayTime <= USED 0
+DelayTime_ms <= USED 0
+FOC_BEMF_Init <= USED 0
+GET_ADC_BG_REF_VAL <= USED 0
+GET_ADC_IBUS_REF_VAL <= USED 0
+GET_ADC_REF_VAL <= USED 0
+GET_BANDGAP_VAL <= USED 0
+MC_BasePara_Init <= USED 0
+MC_BaseValue_Init <= USED 0
+MC_CtrltPara_Init <= USED 0
+MC_FOCPara_Init <= USED 0
+MC_FaultPara_Init <= USED 0
+MC_LPFPara_Init <= USED 0
+MC_Para_Init <= USED 0
+MC_SampPara_Init <= USED 0
+MC_SpeedRamp_Init <= USED 0
+MC_UserPowerSet_Init <= USED 0
+__DI_Set <= USED 0
+__EI_Set <= USED 0
+__asm___10_softinit_c_20258404____REV16 <= USED 0
+__asm___10_softinit_c_20258404____REVSH <= USED 0
+;FILE startup_cmsdk_cm0.o
+;FILE system_cmsdk_cm0.o
+SystemCoreClockUpdate <= USED 0
+__asm___18_system_CMSDK_CM0_c_6b61f0cc____REV16 <= USED 0
+__asm___18_system_CMSDK_CM0_c_6b61f0cc____REVSH <= USED 0
+;FILE timer.o
+__asm___7_timer_c_c90ed609____REV16 <= USED 0
+__asm___7_timer_c_c90ed609____REVSH <= USED 0
+timer0_start <= USED 0
+timer0_stop <= USED 0
+timer0_wait <= USED 0
+timer2_Capture <= USED 0
+timer2_init <= USED 0
+timer3_init <= USED 0
+timer4_FGinit <= USED 0
+timer4_PWMinit <= USED 0
+timer4_init <= USED 0
+timer5_init <= USED 0
+timer6_init <= USED 0
+;FILE uart.o
+__asm___6_uart_c_2b065a8c____REV16 <= USED 0
+__asm___6_uart_c_2b065a8c____REVSH <= USED 0
+printk_uart1 <= USED 0
+uart0Rx_init <= USED 0
+uart0Tx_init <= USED 0
+uart1Rx_init <= USED 0
+uart1Tx_init <= USED 0
+;FILE wdt.o
+__asm___5_wdt_c_723d1539____REV16 <= USED 0
+__asm___5_wdt_c_723d1539____REVSH <= USED 0
+appWDTOpen <= USED 0

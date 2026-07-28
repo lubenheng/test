@@ -1,0 +1,3584 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
+  <vendor>OCS</vendor>
+  <vendorID>OCS</vendorID>
+  <name>ODS5010</name>
+  <series>ODS5010</series>
+  <version>1.0</version>
+  <description>ODS5010</description>
+  <licenseText></licenseText>
+  <cpu>
+    <name>CM0plus</name>
+    <revision>r0p0</revision>
+    <endian>little</endian>
+    <mpuPresent>true</mpuPresent>
+    <fpuPresent>true</fpuPresent>
+    <nvicPrioBits>4</nvicPrioBits>
+    <vendorSystickConfig>false</vendorSystickConfig>
+  </cpu>
+  <addressUnitBits>8</addressUnitBits>
+  <width>32</width>
+  <peripherals>
+    <peripheral>
+      <name>GPIO_A</name>
+      <description>GPIO Port A</description>
+      <groupName>GPIO_A</groupName>
+      <prependToName>GPIO_A_</prependToName>
+      <baseAddress>0x48000000</baseAddress>
+      <addressBlock>
+        <offset>0</offset>
+        <size>0x90</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <!-- Version ID Register -->
+        <register>
+          <name>VERID</name>
+          <description>Version ID Register</description>
+          <addressOffset>0x00</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>MINVN</name>
+              <description>Minor Version Number</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>MAJVN</name>
+              <description>Major Version Number</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>FEATURE</name>
+              <description>Feature Identification</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Register -->
+        <register>
+          <name>DR</name>
+          <description>Data Register</description>
+          <addressOffset>0x04</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DR</name>
+              <description>Data Register Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Set Register -->
+        <register>
+          <name>DRS</name>
+          <description>Data Set Register</description>
+          <addressOffset>0x08</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRS</name>
+              <description>Data Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Clear Register -->
+        <register>
+          <name>DRC</name>
+          <description>Data Clear Register</description>
+          <addressOffset>0x0C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRC</name>
+              <description>Data Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Toggle Register -->
+        <register>
+          <name>DRT</name>
+          <description>Data Toggle Register</description>
+          <addressOffset>0x10</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRT</name>
+              <description>Data Toggle Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Output Enable Set Register -->
+        <register>
+          <name>OES</name>
+          <description>Output Enable Set Register</description>
+          <addressOffset>0x14</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>OES</name>
+              <description>Output Enable Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Output Enable Clear Register -->
+        <register>
+          <name>OEC</name>
+          <description>Output Enable Clear Register</description>
+          <addressOffset>0x18</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>OEC</name>
+              <description>Output Enable Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Enable Set Register -->
+        <register>
+          <name>ITES</name>
+          <description>Interrupt Enable Set Register</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITES</name>
+              <description>Interrupt Enable Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Enable Clear Register -->
+        <register>
+          <name>ITEC</name>
+          <description>Interrupt Enable Clear Register</description>
+          <addressOffset>0x20</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITEC</name>
+              <description>Interrupt Enable Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Type 0-7 Register -->
+        <register>
+          <name>ITT0</name>
+          <description>Interrupt Type for Pins 0-7</description>
+          <addressOffset>0x24</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITT0_7</name>
+              <description>Interrupt Type for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Type 8-15 Register -->
+        <register>
+          <name>ITT1</name>
+          <description>Interrupt Type for Pins 8-15</description>
+          <addressOffset>0x28</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITT8_15</name>
+              <description>Interrupt Type for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED2C</name>
+          <description>Reserved</description>
+          <addressOffset>0x2C</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED30</name>
+          <description>Reserved</description>
+          <addressOffset>0x30</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Interrupt Type Control Register -->
+        <register>
+          <name>ITTC</name>
+          <description>Interrupt Type Control Register</description>
+          <addressOffset>0x34</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITTC</name>
+              <description>Interrupt Type Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Status Register -->
+        <register>
+          <name>ITS</name>
+          <description>Interrupt Status Register</description>
+          <addressOffset>0x38</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITS</name>
+              <description>Interrupt Status Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Alternate Function 0-7 Register -->
+        <register>
+          <name>AF0</name>
+          <description>Alternate Function for Pins 0-7</description>
+          <addressOffset>0x3C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AF0_7</name>
+              <description>Alternate Function for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Alternate Function 8-15 Register -->
+        <register>
+          <name>AF1</name>
+          <description>Alternate Function for Pins 8-15</description>
+          <addressOffset>0x40</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AF8_15</name>
+              <description>Alternate Function for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED44</name>
+          <description>Reserved</description>
+          <addressOffset>0x44</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED48</name>
+          <description>Reserved</description>
+          <addressOffset>0x48</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Alternate Function Control Register -->
+        <register>
+          <name>AFC</name>
+          <description>Alternate Function Control Register</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AFC</name>
+              <description>Alternate Function Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Analog Register -->
+        <register>
+          <name>ANA</name>
+          <description>Analog Control Register</description>
+          <addressOffset>0x50</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ANA</name>
+              <description>Analog Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Analog Control Register -->
+        <register>
+          <name>ANAC</name>
+          <description>Analog Control Configuration Register</description>
+          <addressOffset>0x54</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ANAC</name>
+              <description>Analog Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-up Register -->
+        <register>
+          <name>PU</name>
+          <description>Pull-up Register</description>
+          <addressOffset>0x58</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PU</name>
+              <description>Pull-up Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Strong Pull-up Register -->
+        <register>
+          <name>SPU</name>
+          <description>Strong Pull-up Register</description>
+          <addressOffset>0x5C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SPU</name>
+              <description>Strong Pull-up Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-up Control Register -->
+        <register>
+          <name>PUC</name>
+          <description>Pull-up Control Register</description>
+          <addressOffset>0x60</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PUC</name>
+              <description>Pull-up Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-down Register -->
+        <register>
+          <name>PD</name>
+          <description>Pull-down Register</description>
+          <addressOffset>0x64</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PD</name>
+              <description>Pull-down Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-down Control Register -->
+        <register>
+          <name>PDC</name>
+          <description>Pull-down Control Register</description>
+          <addressOffset>0x68</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PDC</name>
+              <description>Pull-down Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Drive Strength 0-7 Register -->
+        <register>
+          <name>DRVS0</name>
+          <description>Drive Strength for Pins 0-7</description>
+          <addressOffset>0x6C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVS0_7</name>
+              <description>Drive Strength for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Drive Strength 8-15 Register -->
+        <register>
+          <name>DRVS1</name>
+          <description>Drive Strength for Pins 8-15</description>
+          <addressOffset>0x70</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVS8_15</name>
+              <description>Drive Strength for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED74</name>
+          <description>Reserved</description>
+          <addressOffset>0x74</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED78</name>
+          <description>Reserved</description>
+          <addressOffset>0x78</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Drive Strength Control Register -->
+        <register>
+          <name>DRVC</name>
+          <description>Drive Strength Control Register</description>
+          <addressOffset>0x7C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVC</name>
+              <description>Drive Strength Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+		<!-- Slew Rate Set Register -->
+        <register>
+          <name>SLS</name>
+          <description>Slew Rate Set Register</description>
+          <addressOffset>0x80</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SL</name>
+              <description>Slew Rate Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Slew Rate Control Register -->
+        <register>
+          <name>SLC</name>
+          <description>Slew Rate Control Register</description>
+          <addressOffset>0x84</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SLC</name>
+              <description>Slew Rate Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Schmitt Trigger Set Register -->
+        <register>
+          <name>STS</name>
+          <description>Schmitt Trigger Set Register</description>
+          <addressOffset>0x88</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ST</name>
+              <description>Schmitt Trigger Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Schmitt Trigger Control Register -->
+        <register>
+          <name>STC</name>
+          <description>Schmitt Trigger Control Register</description>
+          <addressOffset>0x8C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>STC</name>
+              <description>Schmitt Trigger Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+	<peripheral>
+      <name>GPIO_B</name>
+      <description>GPIO Port B</description>
+      <groupName>GPIO_B</groupName>
+      <prependToName>GPIO_B_</prependToName>
+      <baseAddress>0x48000400</baseAddress>
+      <addressBlock>
+        <offset>0</offset>
+        <size>0x90</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <!-- Version ID Register -->
+        <register>
+          <name>VERID</name>
+          <description>Version ID Register</description>
+          <addressOffset>0x00</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>MINVN</name>
+              <description>Minor Version Number</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>MAJVN</name>
+              <description>Major Version Number</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>FEATURE</name>
+              <description>Feature Identification</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Register -->
+        <register>
+          <name>DR</name>
+          <description>Data Register</description>
+          <addressOffset>0x04</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DR</name>
+              <description>Data Register Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Set Register -->
+        <register>
+          <name>DRS</name>
+          <description>Data Set Register</description>
+          <addressOffset>0x08</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRS</name>
+              <description>Data Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Clear Register -->
+        <register>
+          <name>DRC</name>
+          <description>Data Clear Register</description>
+          <addressOffset>0x0C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRC</name>
+              <description>Data Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Toggle Register -->
+        <register>
+          <name>DRT</name>
+          <description>Data Toggle Register</description>
+          <addressOffset>0x10</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRT</name>
+              <description>Data Toggle Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Output Enable Set Register -->
+        <register>
+          <name>OES</name>
+          <description>Output Enable Set Register</description>
+          <addressOffset>0x14</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>OES</name>
+              <description>Output Enable Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Output Enable Clear Register -->
+        <register>
+          <name>OEC</name>
+          <description>Output Enable Clear Register</description>
+          <addressOffset>0x18</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>OEC</name>
+              <description>Output Enable Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Enable Set Register -->
+        <register>
+          <name>ITES</name>
+          <description>Interrupt Enable Set Register</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITES</name>
+              <description>Interrupt Enable Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Enable Clear Register -->
+        <register>
+          <name>ITEC</name>
+          <description>Interrupt Enable Clear Register</description>
+          <addressOffset>0x20</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITEC</name>
+              <description>Interrupt Enable Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Type 0-7 Register -->
+        <register>
+          <name>ITT0</name>
+          <description>Interrupt Type for Pins 0-7</description>
+          <addressOffset>0x24</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITT0_7</name>
+              <description>Interrupt Type for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Type 8-15 Register -->
+        <register>
+          <name>ITT1</name>
+          <description>Interrupt Type for Pins 8-15</description>
+          <addressOffset>0x28</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITT8_15</name>
+              <description>Interrupt Type for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED2C</name>
+          <description>Reserved</description>
+          <addressOffset>0x2C</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED30</name>
+          <description>Reserved</description>
+          <addressOffset>0x30</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Interrupt Type Control Register -->
+        <register>
+          <name>ITTC</name>
+          <description>Interrupt Type Control Register</description>
+          <addressOffset>0x34</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITTC</name>
+              <description>Interrupt Type Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Status Register -->
+        <register>
+          <name>ITS</name>
+          <description>Interrupt Status Register</description>
+          <addressOffset>0x38</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITS</name>
+              <description>Interrupt Status Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Alternate Function 0-7 Register -->
+        <register>
+          <name>AF0</name>
+          <description>Alternate Function for Pins 0-7</description>
+          <addressOffset>0x3C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AF0_7</name>
+              <description>Alternate Function for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Alternate Function 8-15 Register -->
+        <register>
+          <name>AF1</name>
+          <description>Alternate Function for Pins 8-15</description>
+          <addressOffset>0x40</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AF8_15</name>
+              <description>Alternate Function for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED44</name>
+          <description>Reserved</description>
+          <addressOffset>0x44</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED48</name>
+          <description>Reserved</description>
+          <addressOffset>0x48</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Alternate Function Control Register -->
+        <register>
+          <name>AFC</name>
+          <description>Alternate Function Control Register</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AFC</name>
+              <description>Alternate Function Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Analog Register -->
+        <register>
+          <name>ANA</name>
+          <description>Analog Control Register</description>
+          <addressOffset>0x50</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ANA</name>
+              <description>Analog Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Analog Control Register -->
+        <register>
+          <name>ANAC</name>
+          <description>Analog Control Configuration Register</description>
+          <addressOffset>0x54</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ANAC</name>
+              <description>Analog Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-up Register -->
+        <register>
+          <name>PU</name>
+          <description>Pull-up Register</description>
+          <addressOffset>0x58</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PU</name>
+              <description>Pull-up Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Strong Pull-up Register -->
+        <register>
+          <name>SPU</name>
+          <description>Strong Pull-up Register</description>
+          <addressOffset>0x5C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SPU</name>
+              <description>Strong Pull-up Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-up Control Register -->
+        <register>
+          <name>PUC</name>
+          <description>Pull-up Control Register</description>
+          <addressOffset>0x60</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PUC</name>
+              <description>Pull-up Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-down Register -->
+        <register>
+          <name>PD</name>
+          <description>Pull-down Register</description>
+          <addressOffset>0x64</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PD</name>
+              <description>Pull-down Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-down Control Register -->
+        <register>
+          <name>PDC</name>
+          <description>Pull-down Control Register</description>
+          <addressOffset>0x68</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PDC</name>
+              <description>Pull-down Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Drive Strength 0-7 Register -->
+        <register>
+          <name>DRVS0</name>
+          <description>Drive Strength for Pins 0-7</description>
+          <addressOffset>0x6C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVS0_7</name>
+              <description>Drive Strength for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Drive Strength 8-15 Register -->
+        <register>
+          <name>DRVS1</name>
+          <description>Drive Strength for Pins 8-15</description>
+          <addressOffset>0x70</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVS8_15</name>
+              <description>Drive Strength for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED74</name>
+          <description>Reserved</description>
+          <addressOffset>0x74</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED78</name>
+          <description>Reserved</description>
+          <addressOffset>0x78</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Drive Strength Control Register -->
+        <register>
+          <name>DRVC</name>
+          <description>Drive Strength Control Register</description>
+          <addressOffset>0x7C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVC</name>
+              <description>Drive Strength Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+		<!-- Slew Rate Set Register -->
+        <register>
+          <name>SLS</name>
+          <description>Slew Rate Set Register</description>
+          <addressOffset>0x80</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SL</name>
+              <description>Slew Rate Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Slew Rate Control Register -->
+        <register>
+          <name>SLC</name>
+          <description>Slew Rate Control Register</description>
+          <addressOffset>0x84</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SLC</name>
+              <description>Slew Rate Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Schmitt Trigger Set Register -->
+        <register>
+          <name>STS</name>
+          <description>Schmitt Trigger Set Register</description>
+          <addressOffset>0x88</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ST</name>
+              <description>Schmitt Trigger Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Schmitt Trigger Control Register -->
+        <register>
+          <name>STC</name>
+          <description>Schmitt Trigger Control Register</description>
+          <addressOffset>0x8C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>STC</name>
+              <description>Schmitt Trigger Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>GPIO_C</name>
+      <description>GPIO Port C</description>
+      <groupName>GPIO_C</groupName>
+      <prependToName>GPIO_C_</prependToName>
+      <baseAddress>0x48000800</baseAddress>
+      <addressBlock>
+        <offset>0</offset>
+        <size>0x90</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <!-- Version ID Register -->
+        <register>
+          <name>VERID</name>
+          <description>Version ID Register</description>
+          <addressOffset>0x00</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>MINVN</name>
+              <description>Minor Version Number</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>MAJVN</name>
+              <description>Major Version Number</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>FEATURE</name>
+              <description>Feature Identification</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Register -->
+        <register>
+          <name>DR</name>
+          <description>Data Register</description>
+          <addressOffset>0x04</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DR</name>
+              <description>Data Register Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Set Register -->
+        <register>
+          <name>DRS</name>
+          <description>Data Set Register</description>
+          <addressOffset>0x08</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRS</name>
+              <description>Data Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Clear Register -->
+        <register>
+          <name>DRC</name>
+          <description>Data Clear Register</description>
+          <addressOffset>0x0C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRC</name>
+              <description>Data Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Data Toggle Register -->
+        <register>
+          <name>DRT</name>
+          <description>Data Toggle Register</description>
+          <addressOffset>0x10</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRT</name>
+              <description>Data Toggle Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Output Enable Set Register -->
+        <register>
+          <name>OES</name>
+          <description>Output Enable Set Register</description>
+          <addressOffset>0x14</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>OES</name>
+              <description>Output Enable Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Output Enable Clear Register -->
+        <register>
+          <name>OEC</name>
+          <description>Output Enable Clear Register</description>
+          <addressOffset>0x18</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>OEC</name>
+              <description>Output Enable Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Enable Set Register -->
+        <register>
+          <name>ITES</name>
+          <description>Interrupt Enable Set Register</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITES</name>
+              <description>Interrupt Enable Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Enable Clear Register -->
+        <register>
+          <name>ITEC</name>
+          <description>Interrupt Enable Clear Register</description>
+          <addressOffset>0x20</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITEC</name>
+              <description>Interrupt Enable Clear Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Type 0-7 Register -->
+        <register>
+          <name>ITT0</name>
+          <description>Interrupt Type for Pins 0-7</description>
+          <addressOffset>0x24</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITT0_7</name>
+              <description>Interrupt Type for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Type 8-15 Register -->
+        <register>
+          <name>ITT1</name>
+          <description>Interrupt Type for Pins 8-15</description>
+          <addressOffset>0x28</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITT8_15</name>
+              <description>Interrupt Type for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED2C</name>
+          <description>Reserved</description>
+          <addressOffset>0x2C</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED30</name>
+          <description>Reserved</description>
+          <addressOffset>0x30</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Interrupt Type Control Register -->
+        <register>
+          <name>ITTC</name>
+          <description>Interrupt Type Control Register</description>
+          <addressOffset>0x34</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITTC</name>
+              <description>Interrupt Type Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Status Register -->
+        <register>
+          <name>ITS</name>
+          <description>Interrupt Status Register</description>
+          <addressOffset>0x38</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ITS</name>
+              <description>Interrupt Status Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Alternate Function 0-7 Register -->
+        <register>
+          <name>AF0</name>
+          <description>Alternate Function for Pins 0-7</description>
+          <addressOffset>0x3C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AF0_7</name>
+              <description>Alternate Function for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Alternate Function 8-15 Register -->
+        <register>
+          <name>AF1</name>
+          <description>Alternate Function for Pins 8-15</description>
+          <addressOffset>0x40</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AF8_15</name>
+              <description>Alternate Function for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED44</name>
+          <description>Reserved</description>
+          <addressOffset>0x44</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED48</name>
+          <description>Reserved</description>
+          <addressOffset>0x48</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Alternate Function Control Register -->
+        <register>
+          <name>AFC</name>
+          <description>Alternate Function Control Register</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AFC</name>
+              <description>Alternate Function Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Analog Register -->
+        <register>
+          <name>ANA</name>
+          <description>Analog Control Register</description>
+          <addressOffset>0x50</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ANA</name>
+              <description>Analog Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Analog Control Register -->
+        <register>
+          <name>ANAC</name>
+          <description>Analog Control Configuration Register</description>
+          <addressOffset>0x54</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ANAC</name>
+              <description>Analog Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-up Register -->
+        <register>
+          <name>PU</name>
+          <description>Pull-up Register</description>
+          <addressOffset>0x58</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PU</name>
+              <description>Pull-up Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Strong Pull-up Register -->
+        <register>
+          <name>SPU</name>
+          <description>Strong Pull-up Register</description>
+          <addressOffset>0x5C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SPU</name>
+              <description>Strong Pull-up Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-up Control Register -->
+        <register>
+          <name>PUC</name>
+          <description>Pull-up Control Register</description>
+          <addressOffset>0x60</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PUC</name>
+              <description>Pull-up Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-down Register -->
+        <register>
+          <name>PD</name>
+          <description>Pull-down Register</description>
+          <addressOffset>0x64</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PD</name>
+              <description>Pull-down Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Pull-down Control Register -->
+        <register>
+          <name>PDC</name>
+          <description>Pull-down Control Register</description>
+          <addressOffset>0x68</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PDC</name>
+              <description>Pull-down Control Configuration Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Drive Strength 0-7 Register -->
+        <register>
+          <name>DRVS0</name>
+          <description>Drive Strength for Pins 0-7</description>
+          <addressOffset>0x6C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVS0_7</name>
+              <description>Drive Strength for Pins 0-7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Drive Strength 8-15 Register -->
+        <register>
+          <name>DRVS1</name>
+          <description>Drive Strength for Pins 8-15</description>
+          <addressOffset>0x70</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVS8_15</name>
+              <description>Drive Strength for Pins 8-15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Reserved Registers -->
+        <register>
+          <name>RESERVED74</name>
+          <description>Reserved</description>
+          <addressOffset>0x74</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <register>
+          <name>RESERVED78</name>
+          <description>Reserved</description>
+          <addressOffset>0x78</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+        </register>
+
+        <!-- Drive Strength Control Register -->
+        <register>
+          <name>DRVC</name>
+          <description>Drive Strength Control Register</description>
+          <addressOffset>0x7C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DRVC</name>
+              <description>Drive Strength Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+		<!-- Slew Rate Set Register -->
+        <register>
+          <name>SLS</name>
+          <description>Slew Rate Set Register</description>
+          <addressOffset>0x80</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SL</name>
+              <description>Slew Rate Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Slew Rate Control Register -->
+        <register>
+          <name>SLC</name>
+          <description>Slew Rate Control Register</description>
+          <addressOffset>0x84</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SLC</name>
+              <description>Slew Rate Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Schmitt Trigger Set Register -->
+        <register>
+          <name>STS</name>
+          <description>Schmitt Trigger Set Register</description>
+          <addressOffset>0x88</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ST</name>
+              <description>Schmitt Trigger Set Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Schmitt Trigger Control Register -->
+        <register>
+          <name>STC</name>
+          <description>Schmitt Trigger Control Register</description>
+          <addressOffset>0x8C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>STC</name>
+              <description>Schmitt Trigger Control Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+	<peripheral>
+      <name>MCPWM</name>
+      <description>Motor Control PWM</description>
+      <groupName>MCPWM</groupName>
+      <prependToName>MCPWM_</prependToName>
+      <baseAddress>0x40010C00</baseAddress>
+      <addressBlock>
+        <offset>0</offset>
+        <size>0xD0</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <!-- Channel 0 Compare Threshold Registers -->
+        <register>
+          <name>TH00</name>
+          <description>MCPWM CH0_P Compare Threshold Register</description>
+          <addressOffset>0x00</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH00</name>
+              <description>CH0_P Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TH01</name>
+          <description>MCPWM CH0_N Compare Threshold Register</description>
+          <addressOffset>0x04</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH01</name>
+              <description>CH0_N Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Channel 1 Compare Threshold Registers -->
+        <register>
+          <name>TH10</name>
+          <description>MCPWM CH1_P Compare Threshold Register</description>
+          <addressOffset>0x08</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH10</name>
+              <description>CH1_P Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TH11</name>
+          <description>MCPWM CH1_N Compare Threshold Register</description>
+          <addressOffset>0x0C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH11</name>
+              <description>CH1_N Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Channel 2 Compare Threshold Registers -->
+        <register>
+          <name>TH20</name>
+          <description>MCPWM CH2_P Compare Threshold Register</description>
+          <addressOffset>0x10</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH20</name>
+              <description>CH2_P Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TH21</name>
+          <description>MCPWM CH2_N Compare Threshold Register</description>
+          <addressOffset>0x14</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH21</name>
+              <description>CH2_N Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Channel 3 Compare Threshold Registers -->
+        <register>
+          <name>TH30</name>
+          <description>MCPWM CH3_P Compare Threshold Register</description>
+          <addressOffset>0x18</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH30</name>
+              <description>CH3_P Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TH31</name>
+          <description>MCPWM CH3_N Compare Threshold Register</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH31</name>
+              <description>CH3_N Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Channel 4 Compare Threshold Registers -->
+        <register>
+          <name>TH40</name>
+          <description>MCPWM CH4_P Compare Threshold Register</description>
+          <addressOffset>0x20</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH40</name>
+              <description>CH4_P Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TH41</name>
+          <description>MCPWM CH4_N Compare Threshold Register</description>
+          <addressOffset>0x24</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH41</name>
+              <description>CH4_N Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Channel 5 Compare Threshold Registers -->
+        <register>
+          <name>TH50</name>
+          <description>MCPWM CH5_P Compare Threshold Register</description>
+          <addressOffset>0x28</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH50</name>
+              <description>CH5_P Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TH51</name>
+          <description>MCPWM CH5_N Compare Threshold Register</description>
+          <addressOffset>0x2C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH51</name>
+              <description>CH5_N Compare Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- ADC Sample Timer Compare Threshold Registers -->
+        <register>
+          <name>TMR0</name>
+          <description>ADC Sample Timer Compare Threshold 0 Register</description>
+          <addressOffset>0x30</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TMR0</name>
+              <description>ADC Sample Timer Compare Threshold 0</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TMR1</name>
+          <description>ADC Sample Timer Compare Threshold 1 Register</description>
+          <addressOffset>0x34</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TMR1</name>
+              <description>ADC Sample Timer Compare Threshold 1</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TMR2</name>
+          <description>ADC Sample Timer Compare Threshold 2 Register</description>
+          <addressOffset>0x38</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TMR2</name>
+              <description>ADC Sample Timer Compare Threshold 2</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TMR3</name>
+          <description>ADC Sample Timer Compare Threshold 3 Register</description>
+          <addressOffset>0x3C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TMR3</name>
+              <description>ADC Sample Timer Compare Threshold 3</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Time Base Threshold Registers -->
+        <register>
+          <name>TH0</name>
+          <description>MCPWM Time Base 0 Threshold Register</description>
+          <addressOffset>0x40</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH0</name>
+              <description>Time Base 0 Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TH1</name>
+          <description>MCPWM Time Base 1 Threshold Register</description>
+          <addressOffset>0x44</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TH1</name>
+              <description>Time Base 1 Threshold Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Counter Registers (Read-only) -->
+        <register>
+          <name>CNT0</name>
+          <description>MCPWM Time Base 0 Counter Register</description>
+          <addressOffset>0x48</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>CNT0</name>
+              <description>Time Base 0 Counter Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>CNT1</name>
+          <description>MCPWM Time Base 1 Counter Register</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>CNT1</name>
+              <description>Time Base 1 Counter Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Load Control Register -->
+        <register>
+          <name>UPDATE</name>
+          <description>MCPWM Load Control Register</description>
+          <addressOffset>0x50</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>UPDATE</name>
+              <description>Load Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- FAIL Time Counter Register -->
+        <register>
+          <name>FCNT</name>
+          <description>MCPWM FAIL Time Counter Value</description>
+          <addressOffset>0x54</addressOffset>
+          <size>32</size>
+          <access>read-only</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>FCNT</name>
+              <description>FAIL Time Counter Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- External Trigger Registers -->
+        <register>
+          <name>EVT0</name>
+          <description>MCPWM Time Base 0 External Trigger</description>
+          <addressOffset>0x58</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>EVT0</name>
+              <description>Time Base 0 External Trigger</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>EVT1</name>
+          <description>MCPWM Time Base 1 External Trigger</description>
+          <addressOffset>0x5C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>EVT1</name>
+              <description>Time Base 1 External Trigger</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Dead Time Control Registers -->
+        <register>
+          <name>DTH00</name>
+          <description>MCPWM CH0/1/2 N Channel Dead Time Control Register</description>
+          <addressOffset>0x60</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DTH00</name>
+              <description>CH0/1/2 N Channel Dead Time Width</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>DTH01</name>
+          <description>MCPWM CH0/1/2 P Channel Dead Time Control Register</description>
+          <addressOffset>0x64</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DTH01</name>
+              <description>CH0/1/2 P Channel Dead Time Width</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>DTH10</name>
+          <description>MCPWM CH3/4/5 N Channel Dead Time Control Register</description>
+          <addressOffset>0x68</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DTH10</name>
+              <description>CH3/4/5 N Channel Dead Time Width</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>DTH11</name>
+          <description>MCPWM CH3/4/5 P Channel Dead Time Control Register</description>
+          <addressOffset>0x6C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>DTH11</name>
+              <description>CH3/4/5 P Channel Dead Time Width</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Filter and Clock Control Registers -->
+        <register>
+          <name>FLT</name>
+          <description>MCPWM Filter Clock Divider Register</description>
+          <addressOffset>0x70</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>FLT</name>
+              <description>Filter Clock Divider</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>SDCFG</name>
+          <description>MCPWM Load Configuration Register</description>
+          <addressOffset>0x74</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>SDCFG</name>
+              <description>Load Configuration</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>AUEN</name>
+          <description>MCPWM Auto Update Enable Register</description>
+          <addressOffset>0x78</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>AUEN</name>
+              <description>Auto Update Enable</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>TCLK</name>
+          <description>MCPWM Clock Divider Control Register</description>
+          <addressOffset>0x7C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>TCLK</name>
+              <description>Clock Divider Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Interrupt Control Registers -->
+        <register>
+          <name>IE0</name>
+          <description>MCPWM Time Base 0 Interrupt Control Register</description>
+          <addressOffset>0x80</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>IE0</name>
+              <description>Time Base 0 Interrupt Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>IF0</name>
+          <description>MCPWM Time Base 0 Interrupt Flag Register</description>
+          <addressOffset>0x84</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>IF0</name>
+              <description>Time Base 0 Interrupt Flags</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>IE1</name>
+          <description>MCPWM Interrupt Control Register</description>
+          <addressOffset>0x88</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>IE1</name>
+              <description>Interrupt Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+		
+		  <register>
+          <name>IF1</name>
+          <description>MCPWM Interrupt Flag Register</description>
+          <addressOffset>0x8C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>IF1</name>
+              <description>Interrupt Flags</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Exception Interrupt Registers -->
+        <register>
+          <name>EIE</name>
+          <description>MCPWM Exception Interrupt Control Register</description>
+          <addressOffset>0x90</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>EIE</name>
+              <description>Exception Interrupt Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>EIF</name>
+          <description>MCPWM Exception Interrupt Flag Register</description>
+          <addressOffset>0x94</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>EIF</name>
+              <description>Exception Interrupt Flags</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- DMA Request Control Register -->
+        <register>
+          <name>RE</name>
+          <description>MCPWM DMA Request Control Register</description>
+          <addressOffset>0x98</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>RE</name>
+              <description>DMA Request Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Push-Pull Mode Enable Register -->
+        <register>
+          <name>PP</name>
+          <description>MCPWM Push-Pull Mode Enable Register</description>
+          <addressOffset>0x9C</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PP</name>
+              <description>Push-Pull Mode Enable</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- IO Control Registers -->
+        <register>
+          <name>IO01</name>
+          <description>MCPWM CH0 CH1 IO Control Register</description>
+          <addressOffset>0xA0</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>IO01</name>
+              <description>CH0 and CH1 IO Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>IO23</name>
+          <description>MCPWM CH2 CH3 IO Control Register</description>
+          <addressOffset>0xA4</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>IO23</name>
+              <description>CH2 and CH3 IO Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>IO45</name>
+          <description>MCPWM CH4 CH5 IO Control Register</description>
+          <addressOffset>0xA8</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>IO45</name>
+              <description>CH4 and CH5 IO Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Address Alignment Padding -->
+        <register>
+          <name>MASK</name>
+          <description>MCPWM output mask Control</description>
+          <addressOffset>0xAC</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>RESERVED</name>
+              <description>Reserved</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Short Circuit Control Registers -->
+        <register>
+          <name>FAIL012</name>
+          <description>MCPWM CH0 CH1 CH2 Short Circuit Control Register</description>
+          <addressOffset>0xB0</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>FAIL012</name>
+              <description>CH0/1/2 Short Circuit Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <register>
+          <name>FAIL345</name>
+          <description>MCPWM CH3 CH4 CH5 Short Circuit Control Register</description>
+          <addressOffset>0xB4</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>FAIL345</name>
+              <description>CH3/4/5 Short Circuit Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Channel Default Output Register -->
+        <register>
+          <name>CH_DEF</name>
+          <description>MCPWM Short Circuit Protection Channel Output Default Value</description>
+          <addressOffset>0xB8</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>CH_DEF</name>
+              <description>Channel Output Default Value</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Channel Mask Register -->
+        <register>
+          <name>CH_MSK</name>
+          <description>MCPWM Channel Mask Register</description>
+          <addressOffset>0xBC</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>CH_MSK</name>
+              <description>Channel Mask</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Protection Register -->
+        <register>
+          <name>PRT</name>
+          <description>MCPWM Protection Register</description>
+          <addressOffset>0xC0</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>PRT</name>
+              <description>Protection Control</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- Status Stay Hysteresis Register -->
+        <register>
+          <name>STT_HYST</name>
+          <description>MCPWM Status Stay Delay Register</description>
+          <addressOffset>0xC8</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>STT_HYST</name>
+              <description>Status Stay Hysteresis</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+
+        <!-- ZCS Status Delay Register -->
+        <register>
+          <name>ZCS_DELAY</name>
+          <description>MCPWM ZCS Status Delay Register</description>
+          <addressOffset>0xCC</addressOffset>
+          <size>32</size>
+          <access>read-write</access>
+          <resetValue>0x00000000</resetValue>
+          <resetMask>0xFFFFFFFF</resetMask>
+          <fields>
+            <field>
+              <name>ZCS_DELAY</name>
+              <description>ZCS Status Delay</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+  </peripherals>
+</device>
