@@ -1,0 +1,4 @@
+间隔1: dmm_cnt=1 (期望3)
+间隔2: dmm_cnt=1 (期望2)
+间隔0: dmm_cnt=1 (期望0)
+RESULT: FAIL
