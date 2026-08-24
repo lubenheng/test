@@ -1,0 +1,68 @@
+SEGGER J-Link Commander V6.34b (Compiled Aug 13 2018 16:36:55)
+DLL version V6.34b, compiled Aug 13 2018 16:36:16
+
+J-Link Commander will now exit on Error
+
+J-Link Command File read successfully.
+Processing script file...
+
+J-Link connection not established yet but required for command.
+Connecting to J-Link via USB...O.K.
+Firmware: J-Link V9 compiled May  7 2021 16:26:12
+Hardware version: V9.70
+S/N: 609799999
+License(s): GDB, RDI, FlashBP, FlashDL, JFlash
+VTref=3.424V
+Target connection not established yet but required for command.
+Device "ODS5010" selected.
+
+
+Connecting to target via SWD
+Found SW-DP with ID 0x0BC11477
+Scanning AP map to find all available APs
+AP[1]: Stopped AP scan as end of AP map has been reached
+AP[0]: AHB-AP (IDR: 0x04770031)
+Iterating through AP map to find AHB-AP to use
+AP[0]: Core found
+AP[0]: AHB-AP ROM base: 0xE00FF000
+CPUID register: 0x410CC601. Implementer code: 0x41 (ARM)
+Found Cortex-M0 r0p1, Little endian.
+FPUnit: 4 code (BP) slots and 0 literal slots
+CoreSight components:
+ROMTbl[0] @ E00FF000
+ROMTbl[0][0]: E000E000, CID: B105E00D, PID: 000BB008 SCS
+ROMTbl[0][1]: E0001000, CID: B105E00D, PID: 000BB00A DWT
+ROMTbl[0][2]: E0002000, CID: B105E00D, PID: 000BB00B FPB
+Cortex-M0 identified.
+PC = FFFFFFFE, CycleCnt = 00000000
+R0 = FFFFFFFF, R1 = FFFFFFFF, R2 = FFFFFFFF, R3 = FFFFFFFF
+R4 = FFFFFFFF, R5 = FFFFFFFF, R6 = FFFFFFFF, R7 = FFFFFFFF
+R8 = FFFFFFFF, R9 = FFFFFFFF, R10= FFFFFFFF, R11= FFFFFFFF
+R12= FFFFFFFF
+SP(R13)= 0002FFE0, MSP= 0002FFE0, PSP= FFFFFFFC, R14(LR) = FFFFFFF9
+XPSR = F1000003: APSR = NZCVq, EPSR = 01000000, IPSR = 003 (HardFaultMemManage)
+CFBP = 00000000, CONTROL = 00, FAULTMASK = 00, BASEPRI = 00, PRIMASK = 00
+FPU regs: FPU not enabled / not implemented on connected CPU.
+
+Downloading file [E:\OCS\ODS5010\3_AE_Firmware\github\新建文件夹\mcu_5010_sdk\tools\Program_with_Jflash\5010_recover_swd.bin]...
+J-Link: Flash download: Bank 0 @ 0x00000000: 1 range affected (15072 bytes)
+J-Link: Flash download: Total time needed: 13.803s (Prepare: 0.048s, Compare: 0.421s, Erase: 5.987s, Program: 7.101s, Verify: 0.232s, Restore: 0.012s)
+O.K.
+
+Loading binary file E:\OCS\ODS5010\3_AE_Firmware\github\新建文件夹\mcu_5010_sdk\tools\Program_with_Jflash\5010_recover_swd.bin
+Reading 15060 bytes data from target memory @ 0x00000000.
+Verify successful.
+
+PC = FFFFFFFE, CycleCnt = 00000000
+R0 = FFFFFFFF, R1 = FFFFFFFF, R2 = FFFFFFFF, R3 = FFFFFFFF
+R4 = FFFFFFFF, R5 = FFFFFFFF, R6 = FFFFFFFF, R7 = FFFFFFFF
+R8 = FFFFFFFF, R9 = FFFFFFFF, R10= FFFFFFFF, R11= FFFFFFFF
+R12= FFFFFFFF
+SP(R13)= 0002FFE0, MSP= 0002FFE0, PSP= FFFFFFFC, R14(LR) = FFFFFFF9
+XPSR = F1000003: APSR = NZCVq, EPSR = 01000000, IPSR = 003 (HardFaultMemManage)
+CFBP = 00000000, CONTROL = 00, FAULTMASK = 00, BASEPRI = 00, PRIMASK = 00
+FPU regs: FPU not enabled / not implemented on connected CPU.
+
+
+Script processing completed.
+
