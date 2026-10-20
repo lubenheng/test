@@ -135,7 +135,7 @@ def build_text(rows, others, origin):
     w("2. python chips/OCD2361/mtp_config_table.py          # 打印并自检 CRC")
     w("3. python other_test/mtp/build_mtp_config_txt.py     # 重新生成本文本")
     w("4. python other_test/mtp/build_mtp_template.py --from-module   # 生成 Excel 烧录模板")
-    w("5. main.py 菜单 [32] → 选择生成的 _烧录模板.xlsx → 全片擦除+烧录+校验")
+    w("5. main.py 菜单 [32] → 选择 _烧录模板.xlsx 或本文本 → 全片擦除+烧录+校验+自检")
     return "\n".join(out) + "\n", crc
 
 

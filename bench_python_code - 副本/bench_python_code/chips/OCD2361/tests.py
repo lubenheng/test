@@ -30,6 +30,7 @@ if _IIC_DIR not in sys.path:
     sys.path.append(_IIC_DIR)
 from instrument.IIC.mtp_ops import MTPController
 from instrument.IIC.mtp_batch_ops import MTPBatchLogic
+from instrument.IIC.crc import calculate_crc32_iter
 
 # =====================================================================
 # 校准标准判定（测试项 Min./Typ./Max. 取自 2361校准标准.xlsx）
@@ -1749,16 +1750,34 @@ def IIC_reg_rw():
 
 
 # =====================================================================
-# MTP 全片擦除 + 烧录 + 校验（Excel 模板，弹出文件选择框）
+# MTP 全片擦除 + 烧录 + 校验（模板支持 .xlsx / .txt，弹出文件选择框）
 # =====================================================================
 
 # 全片擦除后轮询状态寄存器 [31:0] bit0（1=忙，0=就绪）
 MTP_ERASE_POLL_DELAY = 0.5
 MTP_ERASE_MAX_RETRIES = 60
 
+# CRC 口径（与 MTPBatchLogic.mtp_full_program_with_crc_gui 一致）
+MTP_CRC_ADDR_LIMIT = 416            # CRC 覆盖 phys < 416 的声明字节
+MTP_CRC_RSV_ADDRS = (507, 508, 509, 510)   # CRC32 小端存放
+
+# Close MTP EN 之后的自检（MTP Load → 片上 CRC 状态 → 测试模式 → 回读修调寄存器）
+MTP_POST_LOAD_WAIT = 1.0            # MTP Load 后等待芯片加载/自检完成（与 TESTMODE_EN 一致）
+MTP_POST_TESTMODE_ADDR = 20         # 进入测试模式：[20:15] = 5A5A5A5A
+MTP_POST_TESTMODE_INDEX = 15
+MTP_POST_CRC_ADDR = 21              # 片上自检状态：[21:0] bit2 = 1 → CRC 校验通过
+MTP_POST_CRC_INDEX = 0
+MTP_POST_CRC_OK_BIT = 2
+MTP_POST_VALUE_ADDR = 20            # 修调寄存器 [20:4]，MTP 中对应 phys 440
+MTP_POST_VALUE_INDEX = 4
+MTP_POST_VALUE_PHYS = VBG_TRIM_MPT_ADDR + VBG_TRIM_MPT_INDEX * 4
+
 
 def _mtp_select_template():
-    """弹出文件选择框，返回所选 Excel 模板路径；取消或失败返回 None。"""
+    """弹出文件选择框，返回所选模板路径；取消或失败返回 None。
+
+    支持 .xlsx 烧录模板与 mtp_config_table.txt 配置表文本。
+    """
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -1771,12 +1790,98 @@ def _mtp_select_template():
     root.attributes('-topmost', True)
     try:
         path = filedialog.askopenfilename(
-            title="选择 MTP 烧录模板",
-            filetypes=[("Excel 文件", "*.xlsx"), ("所有文件", "*.*")],
+            title="选择 MTP 烧录模板（.xlsx 或 mtp_config_table.txt）",
+            filetypes=[("MTP 模板", "*.xlsx *.txt"),
+                       ("Excel 文件", "*.xlsx"),
+                       ("文本配置表", "*.txt"),
+                       ("所有文件", "*.*")],
         )
     finally:
         root.destroy()
     return path or None
+
+
+def _mtp_txt_int(token, name, lineno):
+    """解析文本表里的整数（ADDR 为 0x 前缀 HEX，INDEX/数据为 HEX 或十进制）。"""
+    s = str(token).strip()
+    try:
+        return int(s, 16) if s.lower().startswith("0x") else int(s, 10)
+    except ValueError:
+        raise ValueError(f"第 {lineno} 行 {name} 无法解析：'{s}'")
+
+
+def _mtp_parse_config_txt(path):
+    """解析 mtp_config_table.txt（由 other_test/mtp/build_mtp_config_txt.py 生成）。
+
+    只读取数据行（以行号开头）：
+        行号  ADDR  INDEX  [31:24]  [23:16]  [15:8]  [7:0]  PHYS  CRC?  模块
+    说明行、「源表中未烧录的行」（WRITETHENREAD）等自动跳过。
+
+    返回: (buffer, burn_addrs, final_crc)，口径与 xlsx 模板一致：
+          burn_addrs = 全部声明字节；CRC32 只覆盖 phys < 416 的声明字节，
+          小端写入 buffer[507:511]。
+    """
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    buffer = bytearray(512)
+    phys_addrs = set()
+
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        parts = line.split()
+        if len(parts) < 7 or not parts[0].isdigit():
+            continue
+        try:
+            addr = _mtp_txt_int(parts[1], "ADDR", lineno)
+            index = _mtp_txt_int(parts[2], "INDEX", lineno)
+            b31 = _mtp_txt_int(parts[3], "[31:24]", lineno)
+            b23 = _mtp_txt_int(parts[4], "[23:16]", lineno)
+            b15 = _mtp_txt_int(parts[5], "[15:8]", lineno)
+            b7 = _mtp_txt_int(parts[6], "[7:0]", lineno)
+        except ValueError:
+            continue        # 非数据行（如 WRITETHENREAD 参考行）直接跳过
+
+        phys = addr + index * 4
+        if not 0 <= phys <= 508:
+            raise ValueError(f"第 {lineno} 行物理地址 {phys} 超出 0~508")
+        buffer[phys] = b7
+        buffer[phys + 1] = b15
+        buffer[phys + 2] = b23
+        buffer[phys + 3] = b31
+        phys_addrs.update(range(phys, phys + 4))
+
+    if not phys_addrs:
+        raise ValueError("文本模板中没有解析到数据行"
+                         "（应含：# ADDR INDEX [31:24] [23:16] [15:8] [7:0] PHYS 列）")
+
+    burn_addrs = sorted(phys_addrs)
+    crc_addrs = [a for a in burn_addrs if a < MTP_CRC_ADDR_LIMIT]
+    if crc_addrs:
+        final_crc, _ = calculate_crc32_iter(bytes(buffer[a] for a in crc_addrs))
+    else:
+        final_crc = 0xFFFFFFFF
+    for i, addr in enumerate(MTP_CRC_RSV_ADDRS):
+        buffer[addr] = (final_crc >> (8 * i)) & 0xFF
+
+    # 文件头自带的 CRC32 只用于提示（不影响烧录）
+    m = re.search(r"CRC32\s*:\s*0x([0-9A-Fa-f]+)", text)
+    if m and int(m.group(1), 16) != final_crc:
+        print(f"   ⚠️ 文本表自检：文件头 CRC32 0x{int(m.group(1), 16):08X} "
+              f"与解析结果 0x{final_crc:08X} 不一致（表内容被改过但未重新生成？）")
+
+    return buffer, burn_addrs, final_crc
+
+
+def _mtp_parse_template(path):
+    """按扩展名解析模板，返回 (ok, buffer, burn_addrs, final_crc, err)。"""
+    if str(path).lower().endswith(".txt"):
+        try:
+            buffer, burn_addrs, final_crc = _mtp_parse_config_txt(path)
+        except Exception as e:
+            return False, None, None, None, f"{type(e).__name__}: {e}"
+        return True, buffer, burn_addrs, final_crc, None
+
+    return MTPBatchLogic.mtp_full_program_with_crc_gui(
+        path, None, None, None, IICLogic.parse_hex_byte, lambda m: None)
+
 
 
 def _mtp_wait_erase_ready(mtp, addr=31, index=0,
@@ -1801,16 +1906,97 @@ def _mtp_wait_erase_ready(mtp, addr=31, index=0,
     return False
 
 
+def _mtp_post_burn_check(buffer, burn_addrs):
+    """Close MTP EN 之后的自检。
+
+    流程：
+      1. MTP Load：写 [25:5] = 5A5A5A5A，让芯片把 MTP 内容加载到寄存器
+      2. 读 [21:0]，bit2 = 1 → 片上 CRC 校验通过
+      3. 写 [20:15] = 5A5A5A5A 进入测试模式
+      4. 读 [20:4]，与烧录到 MTP phys 440 的同一寄存器值比对，判断读写通过
+
+    返回 True 表示 1~4 全部通过；步骤 4 的期望值来自所选模板，
+    模板未声明 phys 440 时只要求读回有效数据。
+    """
+    i2c = _get_i2c()
+    ok = True
+
+    # ① MTP Load
+    load_hex = ' '.join(f'{b:02X}' for b in MTP_LOAD_DATA)
+    print(f"   MTP Load：写入 [{MTP_LOAD_ADDR}:{MTP_LOAD_INDEX}] = {load_hex}（不回读）")
+    try:
+        execute_write(i2c, addr=MTP_LOAD_ADDR, index=MTP_LOAD_INDEX,
+                      write_data=list(MTP_LOAD_DATA))
+    except Exception as e:
+        print(f"   ❌ MTP Load 失败：{type(e).__name__}: {e}")
+        return False
+    time.sleep(MTP_POST_LOAD_WAIT)
+
+    # ② 片上 CRC 校验状态：[21:0] bit2 = 1
+    status = execute_read(i2c, MTP_POST_CRC_ADDR, MTP_POST_CRC_INDEX)
+    if status and len(status) >= 4:
+        status_hex = ' '.join(f'{b:02X}' for b in status[:4])
+        if status[3] & (1 << MTP_POST_CRC_OK_BIT):
+            print(f"   ✅ MTP CRC 校验通过：[{MTP_POST_CRC_ADDR}:{MTP_POST_CRC_INDEX}] = "
+                  f"{status_hex}，bit{MTP_POST_CRC_OK_BIT} = 1")
+        else:
+            print(f"   ❌ MTP CRC 校验未通过：[{MTP_POST_CRC_ADDR}:{MTP_POST_CRC_INDEX}] = "
+                  f"{status_hex}，bit{MTP_POST_CRC_OK_BIT} = 0")
+            ok = False
+    else:
+        print(f"   ❌ 读取 [{MTP_POST_CRC_ADDR}:{MTP_POST_CRC_INDEX}] 无有效返回，"
+              f"无法判断 CRC 校验")
+        ok = False
+
+    # ③ 进入测试模式
+    print(f"   测试模式：写入 [{MTP_POST_TESTMODE_ADDR}:{MTP_POST_TESTMODE_INDEX}] = "
+          f"5A 5A 5A 5A（不回读）")
+    try:
+        execute_write(i2c, addr=MTP_POST_TESTMODE_ADDR, index=MTP_POST_TESTMODE_INDEX,
+                      write_data=[0x5A, 0x5A, 0x5A, 0x5A])
+    except Exception as e:
+        print(f"   ❌ 写测试模式失败：{type(e).__name__}: {e}")
+        return False
+
+    # ④ 回读 [20:4]（对应 MTP phys 440）
+    phys = MTP_POST_VALUE_PHYS
+    expected = None
+    if all(phys + i in burn_addrs for i in range(4)):
+        expected = [buffer[phys + 3], buffer[phys + 2], buffer[phys + 1], buffer[phys]]
+
+    rd = execute_read(i2c, MTP_POST_VALUE_ADDR, MTP_POST_VALUE_INDEX)
+    if not rd or len(rd) < 4:
+        print(f"   ❌ 读取 [{MTP_POST_VALUE_ADDR}:{MTP_POST_VALUE_INDEX}] 无有效返回，读写失败")
+        return False
+
+    rd_hex = ' '.join(f'{b:02X}' for b in rd[:4])
+    print(f"   回读 [{MTP_POST_VALUE_ADDR}:{MTP_POST_VALUE_INDEX}] = {rd_hex}"
+          f"（MTP phys {phys}）")
+    if expected is None:
+        print("   ✅ 回读有效，读写通过"
+              f"（所选模板未声明 phys {phys}，不做数值比对）")
+    elif list(rd[:4]) == expected:
+        print(f"   ✅ 与 MTP 烧录值一致（{' '.join(f'{b:02X}' for b in expected)}），读写通过")
+    else:
+        print(f"   ❌ 与 MTP 烧录值不一致：期望 "
+              f"{' '.join(f'{b:02X}' for b in expected)}，读回 {rd_hex}")
+        ok = False
+
+    return ok
+
+
 def MTP_full_program():
     """MTP 全片擦除 + 烧录 + 校验（菜单 [32]）。
 
     流程：
-      1. 弹出文件选择框，选择 MTP 批量模板 Excel
+      1. 弹出文件选择框，选择烧录模板（.xlsx，或 mtp_config_table.txt）
       2. 解析模板并算 CRC（覆盖模板声明且地址 < 416 的字节，小端写入 507~510）
       3. 确认后 Open MTP EN → 全片擦除 → 轮询 [31:0] bit0 等待完成
       4. 两遍烧录（数据区 + CRC 区）→ 逐字节回读校验
       5. 无论成败都 Close MTP EN
-    返回 True 表示烧录与校验全部通过。
+      6. 自检：MTP Load → 读 [21:0] bit2 判断 CRC → 写 [20:15] 进测试模式
+         → 读 [20:4] 比对烧录值，判断读写通过
+    返回 True 表示烧录、校验与自检全部通过。
     """
     print("\n🚀 执行 MTP 全片擦除+烧录+校验 ...")
 
@@ -1821,8 +2007,7 @@ def MTP_full_program():
     print(f"   模板：{path}")
 
     mtp = _get_mtp()
-    ok, buffer, burn_addrs, final_crc, err = MTPBatchLogic.mtp_full_program_with_crc_gui(
-        path, mtp, None, None, IICLogic.parse_hex_byte, lambda m: None)
+    ok, buffer, burn_addrs, final_crc, err = _mtp_parse_template(path)
     if not ok:
         print(f"   ❌ 模板解析失败：{err}")
         return False
@@ -1862,6 +2047,12 @@ def MTP_full_program():
             print(f"   地址 {off}: 期望 0x{exp:02X}，读回 {got_txt}")
         if len(mismatches) > 20:
             print(f"   ...（其余 {len(mismatches) - 20} 处略）")
+        return False
+
+    # Close MTP EN 之后的自检：MTP Load → [21:0] bit2 → 测试模式 → 回读 [20:4]
+    print("\n   开始 Close MTP EN 后自检 ...")
+    if not _mtp_post_burn_check(buffer, burn_addrs):
+        print("\n❌ 逐字节校验通过，但 MTP Load 后自检未通过")
         return False
 
     print(f"\n✅ 全片擦除+烧录+校验通过：{len(burn_addrs)} 字节，CRC 0x{final_crc:08X}")
@@ -1906,6 +2097,6 @@ TEST_ITEMS = {
     "29": ("下管输出阻抗",   down_output_impedance),
     "30": ("PWM阈值电压",  PWM_IN_Voltage),
     "31": ("MTP_program",  MTP_program),
-    "32": ("MTP 全片擦除+烧录+校验",  MTP_full_program),
+    "32": ("MTP 全片擦除+烧录+校验+自检",  MTP_full_program),
     "33": ("IIC 寄存器读写",  IIC_reg_rw),
 }

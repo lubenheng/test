@@ -128,4 +128,4 @@ CRC 存放    : 地址 507 / 508 / 509 / 510，小端 84 FA CA 2A
 2. python chips/OCD2361/mtp_config_table.py          # 打印并自检 CRC
 3. python other_test/mtp/build_mtp_config_txt.py     # 重新生成本文本
 4. python other_test/mtp/build_mtp_template.py --from-module   # 生成 Excel 烧录模板
-5. main.py 菜单 [32] → 选择生成的 _烧录模板.xlsx → 全片擦除+烧录+校验
+5. main.py 菜单 [32] → 选择 _烧录模板.xlsx 或本文本 → 全片擦除+烧录+校验+自检
