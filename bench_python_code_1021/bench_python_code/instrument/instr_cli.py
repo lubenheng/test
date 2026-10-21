@@ -33,6 +33,7 @@ SAFE = {
     "sig_get_high_level", "sig_get_low_level",
     "smu_init", "smu_close", "smu_get_idn", "smu_output_state", "smu_measure",
     "smu_measure_voltage", "smu_display_voltage", "smu_display_current",
+    "smu_query_state", "smu_print_state",
     "serial_list_ports", "serial_list_ports_detailed", "serial_find_ports_by_keyword",
     "swd_init", "swd_close", "swd_read_register",
 }
@@ -45,6 +46,7 @@ DANGEROUS = {
     "swd_write_register", "swd_modify_register",
     "serial_init", "serial_auto_init", "serial_send", "serial_send_and_receive", "serial_receive", "serial_close",
     "smu_set_current", "smu_set_voltage", "smu_output_on", "smu_output_off",
+    "smu_source_current_on",
 }
 CLOSERS = {"osc": "osc_close", "dmm": "dmm_release", "sig": "sig_close", "smu": "smu_close", "swd": "swd_close"}
 

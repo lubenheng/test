@@ -163,26 +163,32 @@ def init_source_meter(resource_string=None, source_function="VOLT",
 
         # 4. 源功能与电平
         if src_func == "VOLT":
-            smu_inst.write(":SOURce:FUNCtion VOLT")
-            smu_inst.write(f":SOURce:VOLTage {source_level}")
-            smu_inst.write(f":SOURce:VOLTage:ILIMit {compliance}")
-            smu_inst.write(":SOURce:VOLTage:RANGe:AUTO ON")
+            _write_checked(":SOURce:FUNCtion VOLT", "源功能")
+            _write_checked(f":SOURce:VOLTage {source_level}", "源电压值")
+            _write_first_ok([f":SOURce:VOLTage:ILIMit {compliance}",
+                             f":SENSe:CURRent:PROTection {compliance}"], "电流限值")
+            _write_checked(":SOURce:VOLTage:RANGe:AUTO ON", "电压量程")
         else:
-            smu_inst.write(":SOURce:FUNCtion CURR")
-            smu_inst.write(f":SOURce:CURRent {source_level}")
-            smu_inst.write(f":SOURce:CURRent:VLIMit {compliance}")
-            smu_inst.write(":SOURce:CURRent:RANGe:AUTO ON")
+            _write_checked(":SOURce:FUNCtion CURR", "源功能")
+            _write_checked(f":SOURce:CURRent {source_level}", "源电流值")
+            _write_first_ok([f":SOURce:CURRent:VLIMit {compliance}",
+                             f":SENSe:VOLTage:PROTection {compliance}"], "电压限值")
+            _write_checked(":SOURce:CURRent:RANGe:AUTO ON", "电流量程")
 
         # 5. 测量功能与量程
-        smu_inst.write(f':SENSe:FUNCtion "{sense}"')
-        smu_inst.write(f":SENSe:{sense}:RANGe:AUTO ON")
+        sense_cmds = ([':SENSe:FUNCtion "VOLTage"', ':SENSe:FUNCtion "VOLT"']
+                      if sense == "VOLT" else
+                      [':SENSe:FUNCtion "CURRent"', ':SENSe:FUNCtion "CURR"'])
+        _write_first_ok(sense_cmds, "测量功能")
+        _write_first_ok([f":SENSe:{sense}:RANGe:AUTO ON",
+                         f":SENSe:{sense}:RANGe:AUTO 1"], "测量量程")
 
         # 6. 2 线 / 4 线
-        smu_inst.write(f":SYSTem:RSENse {'ON' if four_wire else 'OFF'}")
+        _write_checked(f":SYSTem:RSENse {'ON' if four_wire else 'OFF'}", "四线测量")
 
         # 7. 安全状态：输出关闭
-        smu_inst.write(":OUTPut OFF")
-        smu_inst.query("*OPC?")
+        if _write_first_ok([":OUTPut:STATe OFF", ":OUTPut OFF"], "关闭输出") is None:
+            print("   ❌ 初始化时无法关闭输出，请手动确认面板 OUTPUT 已灭")
 
         # 8. 错误队列检查
         errors = _drain_errors()
@@ -192,6 +198,7 @@ def init_source_meter(resource_string=None, source_function="VOLT",
                 print(f"   {e}")
         else:
             print("✅ 源表配置完成（输出已关闭）")
+        print_source_state()
 
         return True
 
@@ -252,30 +259,137 @@ def _report_errors(context):
     return True
 
 
+def _write_checked(cmd, context):
+    """发送一条 SCPI 并立即检查错误队列，确认仪器真的接受了这条命令。
+
+    与“先发一堆命令、最后统一查错误”相比，这样能精确定位是哪条命令被拒绝、
+    仪器报了什么，避免出现“输出打开了但源值没写进去”的静默失败。
+
+    返回：
+        bool - True=命令被接受；False=发送异常或被仪器报错
+    """
+    try:
+        smu_inst.write(cmd)
+        smu_inst.query("*OPC?")
+    except Exception as e:
+        print(f"❌ [{context}] 发送 `{cmd}` 失败：{e}")
+        return False
+
+    errors = _drain_errors()
+    if errors:
+        print(f"❌ [{context}] `{cmd}` 被仪器拒绝：")
+        for e in errors:
+            print(f"      {e}")
+        return False
+    return True
+
+
+def _write_first_ok(candidates, context, quiet=False):
+    """依次尝试候选命令，返回第一条被仪器接受的命令；全部被拒返回 None。
+
+    用于不同固件/命令集写法有差异的项（如限值命令 VLIMit / PROTection、
+    测量功能 "VOLTage" / "VOLT"），避免一处写法不对导致整段配置失效。
+    """
+    for cmd in candidates:
+        try:
+            smu_inst.write(cmd)
+            smu_inst.query("*OPC?")
+        except Exception:
+            continue
+        if not _drain_errors():
+            if not quiet and cmd != candidates[0]:
+                print(f"   {context}：`{cmd}`（回退写法）")
+            return cmd
+    return None
+
+
+def query_source_state():
+    """回读源表当前配置（源功能/电平/限值/输出状态），便于核对是否真的生效。
+
+    返回：
+        dict - 各字段的字符串值；查询失败的字段值为 "(查询失败: ...)"
+    """
+    if not smu_inst:
+        return {}
+    state = {}
+    for key, cmd in (
+        ("function", ":SOURce:FUNCtion?"),
+        ("current", ":SOURce:CURRent?"),
+        ("voltage", ":SOURce:VOLTage?"),
+        ("vlimit", ":SOURce:CURRent:VLIMit?"),
+        ("ilimit", ":SOURce:VOLTage:ILIMit?"),
+        ("output", ":OUTPut:STATe?"),
+    ):
+        try:
+            state[key] = smu_inst.query(cmd).strip()
+        except Exception as e:
+            state[key] = f"(查询失败: {e})"
+    _drain_errors()      # 清掉查询（如非当前模式下的限值读取）产生的错误
+    return state
+
+
+def print_source_state(prefix="   源表配置："):
+    """打印 query_source_state() 的回读结果。
+
+    只显示当前源模式真正生效的那一项限值：电流源看电压限值，电压源看电流限值。
+    （另一项在非当前模式下回读的是仪器的无关默认值，打印出来反而容易误判。）
+    """
+    state = query_source_state()
+    if not state:
+        print(f"{prefix}源表未初始化")
+        return
+    func = str(state.get("function", "")).upper()
+    if "CURR" in func:
+        detail = f"源电流={state.get('current')}，电压限值={state.get('vlimit')}"
+    else:
+        detail = f"源电压={state.get('voltage')}，电流限值={state.get('ilimit')}"
+    print(f"{prefix}源功能={state.get('function')}，{detail}，输出={state.get('output')}")
+
+
 def set_source_current(current, voltage_limit=None):
     """
     切换到电流源模式并设置输出电流与电压限值（compliance）。
 
     注意：本函数只改配置，不改变输出开关状态；输出需另调 output_on()。
+    每条 SCPI 都单独校验，失败时打印具体是哪条被拒，调用方可据此中止流程。
 
     参数：
         current: float - 源电流（A），可为负
         voltage_limit: float/None - 电压限值（V），None 表示保持当前设置
     返回：
-        bool - 配置成功且无仪器错误返回 True
+        bool - 所有配置项都已生效返回 True
     """
     try:
         _require_instance()
-        smu_inst.write(":SOURce:FUNCtion CURR")
-        smu_inst.write(":SOURce:CURRent:RANGe:AUTO ON")
-        smu_inst.write(f":SOURce:CURRent {current}")
+        ok = True
+        ok &= _write_checked(":SOURce:FUNCtion CURR", "源功能")
+        ok &= _write_checked(":SOURce:CURRent:RANGe:AUTO ON", "电流量程")
+        ok &= _write_checked(f":SOURce:CURRent {current}", "源电流值")
+
         if voltage_limit is not None:
-            smu_inst.write(f":SOURce:CURRent:VLIMit {voltage_limit}")
+            cmd = _write_first_ok([
+                f":SOURce:CURRent:VLIMit {voltage_limit}",
+                f":SENSe:VOLTage:PROTection {voltage_limit}",
+            ], "电压限值")
+            if cmd is None:
+                print("   ❌ 电压限值设置失败：仪器既不接受 :SOURce:CURRent:VLIMit，"
+                      "也不接受 :SENSe:VOLTage:PROTection")
+                ok = False
+
         # 源电流时测量电压
-        smu_inst.write(':SENSe:FUNCtion "VOLT"')
-        smu_inst.write(":SENSe:VOLTage:RANGe:AUTO ON")
-        smu_inst.query("*OPC?")
-        return _report_errors("设置电流源")
+        if _write_first_ok([':SENSe:FUNCtion "VOLTage"', ':SENSe:FUNCtion "VOLT"'],
+                           "测量功能") is None:
+            print("   ❌ 测量功能设置失败：仪器不接受 :SENSe:FUNCtion \"VOLTage\"")
+            ok = False
+        if _write_first_ok([":SENSe:VOLTage:RANGe:AUTO ON", ":SENSe:VOLTage:RANGe:AUTO 1"],
+                           "电压量程") is None:
+            print("   ❌ 测量电压量程自动设置失败")
+            ok = False
+
+        if not ok:
+            print("   ⚠️  电流源配置未全部生效，源表当前配置回读：")
+            print_source_state("      ")
+        return ok
     except Exception as e:
         print(f"❌ 设置电流源失败：{str(e)}")
         return False
@@ -286,42 +400,129 @@ def set_source_voltage(voltage, current_limit=None):
     切换到电压源模式并设置输出电压与电流限值（compliance）。
 
     注意：本函数只改配置，不改变输出开关状态；输出需另调 output_on()。
+    每条 SCPI 都单独校验。
 
     参数：
         voltage: float - 源电压（V），可为负
         current_limit: float/None - 电流限值（A），None 表示保持当前设置
     返回：
-        bool - 配置成功且无仪器错误返回 True
+        bool - 所有配置项都已生效返回 True
     """
     try:
         _require_instance()
-        smu_inst.write(":SOURce:FUNCtion VOLT")
-        smu_inst.write(":SOURce:VOLTage:RANGe:AUTO ON")
-        smu_inst.write(f":SOURce:VOLTage {voltage}")
+        ok = True
+        ok &= _write_checked(":SOURce:FUNCtion VOLT", "源功能")
+        ok &= _write_checked(":SOURce:VOLTage:RANGe:AUTO ON", "电压量程")
+        ok &= _write_checked(f":SOURce:VOLTage {voltage}", "源电压值")
+
         if current_limit is not None:
-            smu_inst.write(f":SOURce:VOLTage:ILIMit {current_limit}")
+            cmd = _write_first_ok([
+                f":SOURce:VOLTage:ILIMit {current_limit}",
+                f":SENSe:CURRent:PROTection {current_limit}",
+            ], "电流限值")
+            if cmd is None:
+                print("   ❌ 电流限值设置失败：仪器既不接受 :SOURce:VOLTage:ILIMit，"
+                      "也不接受 :SENSe:CURRent:PROTection")
+                ok = False
+
         # 源电压时测量电流
-        smu_inst.write(':SENSe:FUNCtion "CURR"')
-        smu_inst.write(":SENSe:CURRent:RANGe:AUTO ON")
-        smu_inst.query("*OPC?")
-        return _report_errors("设置电压源")
+        if _write_first_ok([':SENSe:FUNCtion "CURRent"', ':SENSe:FUNCtion "CURR"'],
+                           "测量功能") is None:
+            print("   ❌ 测量功能设置失败：仪器不接受 :SENSe:FUNCtion \"CURRent\"")
+            ok = False
+        if _write_first_ok([":SENSe:CURRent:RANGe:AUTO ON", ":SENSe:CURRent:RANGe:AUTO 1"],
+                           "电流量程") is None:
+            print("   ❌ 测量电流量程自动设置失败")
+            ok = False
+
+        if not ok:
+            print("   ⚠️  电压源配置未全部生效，源表当前配置回读：")
+            print_source_state("      ")
+        return ok
     except Exception as e:
         print(f"❌ 设置电压源失败：{str(e)}")
         return False
 
 
+# 灌流默认值：电流源 200 mA，电压限值 5 V
+SOURCE_CURRENT_A = 0.2
+SOURCE_VLIMIT_V = 5.0
+
+
+def source_current_on(current=SOURCE_CURRENT_A, voltage_limit=SOURCE_VLIMIT_V):
+    """只做五步：选电流源 → 选电压档（测电压）→ 电压限值 → 源电流 → 上电。
+
+    专供「给某个脚灌固定电流、用电压档读回电压」的场景（如 TIA 灌 200 mA）。
+    不设置数值量程/连续测量/显示等其它配置，也不改变其它已配置项。
+
+    发送的 SCPI（每条单独校验，被拒会打印具体命令与仪器错误码）：
+        :SOURce:FUNCtion CURR
+        :SENSe:FUNCtion "VOLTage"          ← 电压档
+        :SOURce:CURRent:VLIMit 5.0         ← 电压限值 5 V（部分固件用 :SENSe:VOLTage:PROTection）
+        :SOURce:CURRent 0.2                ← 源 200 mA
+        :OUTPut:STATe ON                   ← 上电，并回读确认
+
+    参数：
+        current: float - 源电流（A），默认 0.2（200 mA）
+        voltage_limit: float - 电压限值（V），默认 5
+    返回：
+        bool - 五步全部生效返回 True
+    """
+    try:
+        _require_instance()
+        print(f"   源表指令：电流源 → 电压档 → {current * 1000:.0f} mA，"
+              f"限压 {voltage_limit:g} V → 上电")
+        ok = True
+
+        # ① 选电流源
+        ok &= _write_checked(":SOURce:FUNCtion CURR", "选择电流源")
+
+        # ② 选电压档（源电流时测量电压）
+        if _write_first_ok([':SENSe:FUNCtion "VOLTage"', ':SENSe:FUNCtion "VOLT"'],
+                           "选择电压档") is None:
+            print("   ❌ 选择电压档失败：仪器不接受 :SENSe:FUNCtion \"VOLTage\"")
+            ok = False
+
+        # ③ 电压限值
+        if _write_first_ok([f":SOURce:CURRent:VLIMit {voltage_limit}",
+                            f":SENSe:VOLTage:PROTection {voltage_limit}"],
+                           "电压限值") is None:
+            print(f"   ❌ 电压限值 {voltage_limit:g} V 设置失败")
+            ok = False
+
+        # ④ 源电流
+        ok &= _write_checked(f":SOURce:CURRent {current}", "设置源电流")
+
+        # ⑤ 上电：打开输出并回读确认
+        if not output_on():
+            ok = False
+
+        if not ok:
+            print("   ⚠️  源表五步未全部生效，当前配置：")
+            print_source_state("      ")
+        return ok
+    except Exception as e:
+        print(f"❌ 源表上电失败：{str(e)}")
+        return False
+
+
 def output_on():
     """
-    打开源表输出。
+    打开源表输出，并回读确认确实已打开。
 
     返回：
         bool - 成功返回 True
     """
     try:
         _require_instance()
-        smu_inst.write(":OUTPut ON")
-        smu_inst.query("*OPC?")
-        return _report_errors("打开输出")
+        if _write_first_ok([":OUTPut:STATe ON", ":OUTPut ON"], "打开输出") is None:
+            print("   ❌ 打开输出失败：仪器不接受 :OUTPut ON")
+            return False
+        state = query_output_state()
+        if state is not True:
+            print(f"   ❌ 打开输出后回读 :OUTPut:STATe? = {state}，输出未生效")
+            return False
+        return True
     except Exception as e:
         print(f"❌ 打开输出失败：{str(e)}")
         return False
@@ -329,16 +530,21 @@ def output_on():
 
 def output_off():
     """
-    关闭源表输出。
+    关闭源表输出，并回读确认确实已关闭。
 
     返回：
         bool - 成功返回 True
     """
     try:
         _require_instance()
-        smu_inst.write(":OUTPut OFF")
-        smu_inst.query("*OPC?")
-        return _report_errors("关闭输出")
+        if _write_first_ok([":OUTPut:STATe OFF", ":OUTPut OFF"], "关闭输出") is None:
+            print("   ❌ 关闭输出失败：仪器不接受 :OUTPut OFF")
+            return False
+        state = query_output_state()
+        if state is not False:
+            print(f"   ⚠️  关闭输出后回读 :OUTPut:STATe? = {state}")
+            return False
+        return True
     except Exception as e:
         print(f"❌ 关闭输出失败：{str(e)}")
         return False
@@ -383,34 +589,72 @@ def _current_sense_function():
         return None
 
 
+def _parse_first_float(resp):
+    """从 "1.23e-3,2.4e-1,..." 这类返回里取第一个数值。"""
+    for token in str(resp).replace(";", ",").split(","):
+        try:
+            return float(token.strip())
+        except ValueError:
+            continue
+    return None
+
+
+def _read_measurement(function):
+    """读一次测量值：优先 :MEASure:<func>?，不被支持时退回 设测量功能 + :READ?。
+
+    参数：
+        function: str - "VOLT" 或 "CURR"
+    返回：
+        float/None - 读数；失败返回 None
+    """
+    cmd = ":MEASure:VOLTage?" if function == "VOLT" else ":MEASure:CURRent?"
+    try:
+        return float(smu_inst.query(cmd).strip())
+    except Exception:
+        _drain_errors()
+
+    long_name = "VOLTage" if function == "VOLT" else "CURRent"
+    if _write_first_ok([f':SENSe:FUNCtion "{long_name}"'], "测量功能", quiet=True) is None:
+        return None
+    try:
+        return _parse_first_float(smu_inst.query(":READ?").strip())
+    except Exception as e:
+        print(f"❌ 读取 {function} 失败：{e}")
+        _drain_errors()
+        return None
+
+
 def measure_once():
     """
-    触发一次测量，同时返回电压和电流。
+    读一次电压和电流。
 
-    注意：:MEASure:VOLTage? / :MEASure:CURRent? 会切换仪器的测量功能，
-    最后一次查询会把前面板主读数改成对应物理量。本函数在测量结束后
-    恢复调用前的测量功能，避免面板显示被意外改掉。
+    读数来源优先级：
+      1. `:MEASure:VOLTage?` / `:MEASure:CURRent?`
+      2. 上述查询不被支持 →「设置测量功能 + :READ?」
 
     返回：
         (voltage, current) - 电压(V)、电流(A)；失败返回 (None, None)
     """
     try:
         _require_instance()
+
         sense_before = _current_sense_function()
         try:
-            v = float(smu_inst.query(":MEASure:VOLTage?").strip())
-            i = float(smu_inst.query(":MEASure:CURRent?").strip())
+            v = _read_measurement("VOLT")
+            i = _read_measurement("CURR")
         finally:
-            if sense_before:
-                smu_inst.write(f':SENSe:FUNCtion "{sense_before}"')
+            if sense_before == "VOLT":
+                _write_first_ok([':SENSe:FUNCtion "VOLTage"', ':SENSe:FUNCtion "VOLT"'],
+                                "恢复测量功能", quiet=True)
+            elif sense_before == "CURR":
+                _write_first_ok([':SENSe:FUNCtion "CURRent"', ':SENSe:FUNCtion "CURR"'],
+                                "恢复测量功能", quiet=True)
+        if v is None or i is None:
+            print(f"⚠️  源表读数不完整：V={v}，I={i}")
         return v, i
     except Exception as e:
         print(f"❌ 测量失败：{str(e)}")
-        try:
-            err = smu_inst.query(":SYSTem:ERRor?").strip()
-            print(f"   仪器错误：{err}")
-        except Exception:
-            pass
+        _drain_errors()
         return None, None
 
 
@@ -423,7 +667,7 @@ def measure_voltage():
     """
     try:
         _require_instance()
-        return float(smu_inst.query(":MEASure:VOLTage?").strip())
+        return _read_measurement("VOLT")
     except Exception as e:
         print(f"❌ 电压测量失败：{str(e)}")
         return None

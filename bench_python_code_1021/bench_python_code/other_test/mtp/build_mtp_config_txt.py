@@ -3,7 +3,7 @@
 把 MTP 配置寄存器表导出为纯文本（.txt），便于在编辑器里直接查看、搜索和 diff。
 
 数据来源：chips/OCD2361/mtp_config_table.py（该文件可由 xlsx 生成或手工修改）
-输出    ：chips/OCD2361/mtp_config_table.txt
+输出    ：Save_Results/mtp_config_table.txt
 
 运行：
     python other_test/mtp/build_mtp_config_txt.py
@@ -20,7 +20,7 @@ if os.name == 'nt':
     sys.stderr.reconfigure(encoding='utf-8')
 
 ROOT = Path(__file__).resolve().parents[2]
-DST = ROOT / "chips" / "OCD2361" / "mtp_config_table.txt"
+DST = ROOT / "Save_Results" / "mtp_config_table.txt"
 
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "instrument" / "IIC"))
@@ -135,7 +135,9 @@ def build_text(rows, others, origin):
     w("2. python chips/OCD2361/mtp_config_table.py          # 打印并自检 CRC")
     w("3. python other_test/mtp/build_mtp_config_txt.py     # 重新生成本文本")
     w("4. python other_test/mtp/build_mtp_template.py --from-module   # 生成 Excel 烧录模板")
+    w("   或 main.py 菜单 [e] 选择本 txt / --from-txt 本文件，生成 <txt名>_烧录模板.xlsx")
     w("5. main.py 菜单 [32] → 选择 _烧录模板.xlsx 或本文本 → 全片擦除+烧录+校验+自检")
+    w("   本文件输出在 Save_Results/ 下，菜单 [32] 的弹窗默认打开该目录")
     return "\n".join(out) + "\n", crc
 
 
@@ -144,6 +146,7 @@ def main():
     rows, others = load_rows(from_xlsx)
     origin = "MTP_配置寄存器（测试版本2）.xlsx" if from_xlsx else "chips/OCD2361/mtp_config_table.py"
     text, crc = build_text(rows, others, origin)
+    DST.parent.mkdir(parents=True, exist_ok=True)
     DST.write_text(text, encoding='utf-8')
     print(f"PROGRAM 行 {len(rows)}，CRC32 = 0x{crc:08X}")
     print(f"✅ 已生成：{DST}")

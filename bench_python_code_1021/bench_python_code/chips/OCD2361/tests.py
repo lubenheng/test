@@ -12,14 +12,16 @@ TEST_ITEMS 格式:
 import re
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
 import openpyxl
-from openpyxl.styles import Font
+from openpyxl.styles import Alignment, Font, PatternFill
 
 # from bench_python_code.instrument.multimeter.Keysight_34465A import read_keysight_voltage
 from instrument import instrument_set as instr
+from instrument import result_log
 from chips.OCD2361 import chip as chip_cfg
 from instrument.IIC.iic_ops import execute_write, execute_read, IICLogic
 
@@ -64,6 +66,21 @@ _UNIT_SCALE = {
 # 解析结果缓存: {(路径, 表名): {测试项: (Min., Typ., Max., Unit)}}
 _CALIB_CACHE = {}
 
+# 表内单位 → 实测值单位标签（_UNIT_SCALE 已把限值换算到实测单位，记录时按实测单位写）
+_MEASURE_UNIT = {
+    "V": "mV", "MV": "mV", "MA": "mA", "UA": "mA", "A": "mA",
+    "HZ": "Hz", "KHZ": "Hz", "MHZ": "Hz", "Ω": "Ω", "OHM": "Ω",
+}
+
+
+def _ensure_result_session():
+    """首次记录时创建本次的结果 txt（Save_Results/测试结果_<芯片>_<时间>.txt）。"""
+    if result_log.current_path() is None:
+        path = result_log.start_session(getattr(chip_cfg, "CHIP_LABEL", "chip"))
+        print(f"\n📝 测试结果记录：{path}")
+    return result_log.current_path()
+
+
 
 def _to_float(value):
     """把单元格值转成 float，转不了（空/表达式/±符号）返回 None。"""
@@ -101,7 +118,7 @@ def _load_calib_standard(path=CALIB_STANDARD_PATH, sheet=CALIB_SHEET_NAME):
     return table
 
 
-def _judge_by_standard(test_item_name, value, extra_note="", limits=None):
+def _judge_by_standard(test_item_name, value, extra_note="", limits=None, typ=None):
     """按校准标准表的 Min./Max. 判定测试项是否通过。
 
     参数：
@@ -110,25 +127,36 @@ def _judge_by_standard(test_item_name, value, extra_note="", limits=None):
         extra_note: str - 附加到结果行的说明（如修调值）
         limits: tuple/None - (Min, Max) 覆盖值，单位与 value 一致（如 mV）；
                 给定时不使用校准表中的 Min./Max.，Typ 仍取自校准表
+        typ: float/None - Typ 覆盖值，单位与 value 一致；给定时不使用校准表中的 Typ
     返回：
         True/False - 判定结果；无法判定（无标准/无上下限/测量失败）返回 None
     """
     if value is None:
         print(f"❌ {test_item_name} failed：测量失败（无有效读数）")
+        _ensure_result_session()
+        result_log.record(test_item_name, None, "", result="FAIL",
+                          note=f"测量失败{f'，{extra_note}' if extra_note else ''}")
         return None
 
     try:
         table = _load_calib_standard()
     except Exception as e:
         print(f"   ⚠️ 读取校准标准失败，跳过判定：{e}")
+        _ensure_result_session()
+        result_log.record(test_item_name, value, "", result="NO-STD",
+                          note=f"读取校准标准失败：{e}")
         return None
 
     if test_item_name not in table:
         print(f"   ⚠️ 校准标准中未找到测试项 '{test_item_name}'，跳过判定")
+        _ensure_result_session()
+        result_log.record(test_item_name, value, "", result="NO-STD",
+                          note="校准标准中无此项")
         return None
 
     min_val, typ_val, max_val, unit = table[test_item_name]
     scale = _UNIT_SCALE.get(unit.upper(), 1.0)
+    unit_label = _MEASURE_UNIT.get((unit or "").upper(), unit or "")
     if unit and unit.upper() not in _UNIT_SCALE:
         print(f"   ⚠️ 未识别的单位 '{unit}'，按 1:1 处理")
 
@@ -137,11 +165,16 @@ def _judge_by_standard(test_item_name, value, extra_note="", limits=None):
     typ_m = None if typ_val is None else typ_val * scale
     if limits is not None:
         min_m, max_m = limits
+    if typ is not None:
+        typ_m = typ
     note = f"，{extra_note}" if extra_note else ""
 
     if min_m is None and max_m is None:
         print(f"⚠️ {test_item_name} 无判定标准（表中 Min./Max. 均未填），"
               f"实测 {value:.3f}{note}")
+        _ensure_result_session()
+        result_log.record(test_item_name, value, unit_label, typ_v=typ_m,
+                          result="NO-STD", note=extra_note)
         return None
 
     if min_m is not None and max_m is not None:
@@ -161,6 +194,10 @@ def _judge_by_standard(test_item_name, value, extra_note="", limits=None):
     print(f"{'✅' if passed else '❌'} {test_item_name} "
           f"{'pass' if passed else 'failed'}：判定范围 {limit_txt}{typ_txt}，"
           f"实测 {value:.4f}{note}")
+    _ensure_result_session()
+    result_log.record(test_item_name, value, unit_label,
+                      min_v=min_m, typ_v=typ_m, max_v=max_m,
+                      result="PASS" if passed else "FAIL", note=extra_note)
     return passed
 
 
@@ -209,7 +246,10 @@ def _voltage_test(name, addr, index, write_data):
 
 
 def _current_test(name, addr, index, write_data):
-    """电流类测试：写配置 → 万用表测电流(mA) → 读回校验。"""
+    """电流类测试：写配置 → 万用表测电流(mA) → 读回校验。
+
+    这类测试项（HOCP / LOCP / IBN）校准表未给判定范围，只记录实测值。
+    """
     print(f"\n🚀 执行 {name} ...")
     i2c = _get_i2c()
     execute_write(i2c, addr=addr, index=index, write_data=write_data)
@@ -219,6 +259,11 @@ def _current_test(name, addr, index, write_data):
     else:
         print("   电流测量失败")
     _log_read(addr, index)
+
+    _ensure_result_session()
+    result_log.record(name, ma, "mA", result="MEASURED" if ma is not None else "FAIL",
+                      note="" if ma is not None else "测量失败")
+
     print(f"✅ {name} 完成")
     return ma
 
@@ -319,6 +364,61 @@ VREF_PROBE_LO = 0          # 斜率探测点 1：修调值 0
 VREF_PROBE_HI = 10         # 斜率探测点 2：修调值 10
 VREF_SCAN_SPAN = 10        # 估算值不达标时，在 ±10 内扫描
 
+# ---------------------- TIA 输出（TIA_OUT1/2/3，菜单 7/8/9）---------------------
+# 规范 2.6~2.8：进测试模式后写 [20:9] 选通道，往输出脚灌 200 mA，万用表测 WO/UO，
+# 减去 VCM 电压即为 TIA_OUTn 电压；跨阻 R = 电压 / 200 mA。
+# 跨阻由 RW_TIA_RES_SELn 选择（默认 000 → 0.5 Ω → 理论 100 mV）。
+TIA_CURRENT_A = 0.2                  # 灌入电流（A），规范 200 mA
+TIA_CURRENT_MIN_RATIO = 0.5          # 源表实测电流低于设定值的 50% 视为“没灌进去”
+TIA_SMU_VLIMIT_V = 5.0               # 灌流时源表电压限值（V）
+TIA_SETTLE_S = 0.5                   # 切通道 / 改修调后的稳定时间（s）
+TIA_TARGET_MV = 100.0                # 典型值（跨阻 0.5 Ω × 200 mA）
+TIA_LIMITS_MV = (90.0, 110.0)        # 规范 Min./Max.（校准表 Min. 填成 0.9 V，故显式给定）
+TIA_VCM_SEL = [0x00, 0x00, 0x01, 0xE0]   # TEST_ANA<3:0> = 0111 → VCM
+
+# RW_TIA_RES_SELn 编码 → 跨阻（Ω），默认 000 = 0.5 Ω
+TIA_RES_TABLE = {
+    0b000: 0.5, 0b001: 0.75, 0b010: 1.25, 0b011: 2.0,
+    0b100: 1.0, 0b101: 1.5,  0b110: 2.5,  0b111: 4.0,
+}
+TIA_RES_DEFAULT_CODE = 0b000         # 规范默认档位
+TIA_LIMIT_TOL = 0.10                 # 判定范围 = 目标值 ±10%（0.5 Ω 时即 90~110 mV）
+
+# 测试状态机：写 TIA 通道（[20:9]）之前必须先初始化并启动，否则通道切换不生效
+TIA_SM_ADDR = 1
+TIA_SM_INIT_INDEX = 32
+TIA_SM_INIT_DATA = [0x00, 0x00, 0x00, 0x20]     # [1:32] 初始化状态机
+TIA_SM_START_INDEX = 31
+TIA_SM_START_DATA = [0x00, 0x00, 0x02, 0x00]    # [1:31] 启动状态机
+
+# TRIM_TIA_RES0/1/2<7:0> 都在 [20:5]：RES0 = [7:0]、RES1 = [15:8]、RES2 = [23:16]
+TIA_TRIM_ADDR = 20
+TIA_TRIM_INDEX = 5
+TIA_TRIM_MAX = 0xFF
+TIA_TRIM_MPT_ADDR = 0x1A8            # MTP 表中 (0x1A8, 5) ↔ phys 444
+TIA_TRIM_MPT_INDEX = 5
+
+# 通道配置
+#   sel      : [20:9] 选通道数据（TEST_ANA<3:0>）
+#   src/meas : 灌流脚 / 测量脚
+#   trim_lo  : TRIM_TIA_RESn 在 [20:5] 中的低位
+#   res_sel  : RW_TIA_RES_SELn 的 (ADDR, INDEX, bit_lo)，三位都在 [20:0] 里连续排布
+#              SEL0 = [12:10]、SEL1 = [15:13]、SEL2 = [18:16]
+TIA_CHANNELS = {
+    1: {"name": "TIA_OUT1", "sel": [0x00, 0x00, 0x01, 0x37], "src": "UO", "meas": "WO",
+        "trim_lo": 0, "trim_field": "TRIM_TIA_RES0",
+        "res_sel": (20, 0, 10), "res_sel_field": "RW_TIA_RES_SEL0"},
+    2: {"name": "TIA_OUT2", "sel": [0x00, 0x00, 0x01, 0x77], "src": "VO", "meas": "WO",
+        "trim_lo": 8, "trim_field": "TRIM_TIA_RES1",
+        "res_sel": (20, 0, 13), "res_sel_field": "RW_TIA_RES_SEL1"},
+    3: {"name": "TIA_OUT3", "sel": [0x00, 0x00, 0x01, 0xB7], "src": "WO", "meas": "UO",
+        "trim_lo": 16, "trim_field": "TRIM_TIA_RES2",
+        "res_sel": (20, 0, 16), "res_sel_field": "RW_TIA_RES_SEL2"},
+}
+
+# 最近一次测得的 VCM（mV）；后续 TIA 测试默认沿用，可输入 m 重测
+TIA_VCM_CACHE = {"mv": None}
+
 # ADC_IN（菜单 14）：基准板 DAC 输出 → WO，ADC 采样
 # 规格要求 WO 输入不超过 2 V，因此电压上限固定 2000 mV
 ADC_IN_VMAX_MV = 2000
@@ -326,42 +426,161 @@ ADC_IN_DAC_START_MV = 200       # 默认起点（运行时可在终端修改）
 ADC_IN_DAC_STEP_MV = 10         # 默认步进（运行时可在终端修改）
 ADC_IN_DAC_TOL_MV = 20.0        # DAC 输出线性度容差（mV）
 
-# ADC 采样：规格 2.13 节提到 ADCBSY / ADC4_DR<13:0>，但未给出 (ADDR, INDEX)。
-# 填写后启用 ADC 列（码值与转换电压）；保持 None 则只做 DAC 线性测量。
-ADCBSY_ADDR = None              # 触发转换的寄存器 ADDR（写 1 启动）
-ADCBSY_INDEX = None
-ADCBSY_BIT = 0                  # 触发位
-ADC4_DR_ADDR = None             # ADC 结果寄存器 ADDR
-ADC4_DR_INDEX = None
-ADC4_DR_MASK = 0x3FFF           # ADC4_DR<13:0>
-ADC_IN_VREF_MV = 2000.0         # 换算用 ADC_VREF（mV）
+# ADC 采样寄存器（规范 2.13 节）
+# 测试前置条件：ADC 时钟必须已选 16 MHz —— [20:2] 读回 00 00 00 03（MTP phys 432 = 0x03）
+ADC_CLK_ADDR = 20
+ADC_CLK_INDEX = 2
+ADC_CLK_EXPECT = [0x00, 0x00, 0x00, 0x03]
+ADC_CLK_MPT_PHYS = 432          # MTP 表中 (0x1A8, 2) → phys 432
 
-# 测量数据导出目录（相对 bench_python_code）
+# 测试状态机（选 INT 模式 → 启动），必须在写 [20:9] 之前
+ADC_SM_INIT_ADDR, ADC_SM_INIT_INDEX = 1, 32
+ADC_SM_INIT_DATA = [0x00, 0x43, 0xFD, 0x22]      # 状态机选 INT
+ADC_SM_START_ADDR, ADC_SM_START_INDEX = 1, 31
+ADC_SM_START_DATA = [0x00, 0x01, 0x02, 0x00]     # 启动状态机
+
+# ADC 测试使能（TEST_ANA<3:0> = 1100）
+ADC_TESTMODE_ADDR, ADC_TESTMODE_INDEX = 20, 9
+ADC_TESTMODE_DATA = [0x00, 0x00, 0x03, 0x20]
+
+# 通道选择：4 通道
+ADC_CH_ADDR, ADC_CH_INDEX = 3, 1
+ADC_CH_DATA = [0x00, 0x00, 0x00, 0x10]
+
+# ADC 控制寄存器 [3:0]：初始化（数据右对齐，忽略 adc_error）/ 每次取数前更新
+ADC_CTRL_ADDR, ADC_CTRL_INDEX = 3, 0
+ADC_CTRL_INIT_DATA = [0x00, 0x00, 0x0D, 0x81]
+ADC_CTRL_UPDATE_DATA = [0x00, 0x00, 0x0D, 0xC1]
+
+# ADC 数据寄存器 [3:7]，右对齐 14 位
+ADC_DATA_ADDR, ADC_DATA_INDEX = 3, 7
+ADC_DATA_MASK = 0x3FFF          # ADC4_DR<13:0>
+ADC_SAMPLE_DELAY = 0.002        # 更新后等待 ADC 完成（s），规格要求 ≥1 ms
+
+# 换算满量程：规格 2.13 的 Typ 写作 “4096*Vin/ADC_VREF”，故 LSB = VREF/4096。
+# ⚠️ 但数据寄存器是 ADC4_DR<13:0>（14 bit），若实测 code 在 Vin=VREF 时约为 16384，
+#    说明满量程是 16384，需要把本值改为 16384（LSB 变 1/4）。
+#    测试结束会打印“推断满量程”，与配置值不符时会告警，便于现场确认。
+ADC_FULL_SCALE = 4096
+ADC_IN_VREF_MV = 2000.0         # 换算用 ADC_VREF（mV），Vadc = code × VREF / ADC_FULL_SCALE
+ADC_FS_EST_MIN_MV = 100.0       # 推断满量程时只取 DAC 实测 ≥ 该值的点（避开小信号噪声）
+
+# 测量数据导出目录（相对 bench_python_code）与工作表名
 ADC_IN_EXPORT_DIR = "Save_Results"
+ADC_SHEET_DATA = "ADC采样数据汇总"      # 逐点数据
+ADC_SHEET_RESULT = "测试结果"           # 仅最终结果
 
 
-def _adc_available():
-    """ADC 寄存器是否已配置。"""
-    return None not in (ADCBSY_ADDR, ADCBSY_INDEX, ADC4_DR_ADDR, ADC4_DR_INDEX)
+def _hex(data):
+    """字节列表 → '00 00 03 20' 形式的字符串。"""
+    return ' '.join(f'{b:02X}' for b in data)
 
 
-def _adc_sample(i2c, timeout_s=0.05):
-    """触发一次 ADC 转换并读取码值；未配置或失败返回 None。"""
-    if not _adc_available():
-        return None
+def _adc_check_clock(i2c):
+    """检查 ADC 时钟是否已选 16 MHz：[20:2] 应为 00 00 00 03（MTP phys 432 = 0x03）。
+
+    返回 True=满足前置条件；False=不满足（调用方应终止测试）。
+    不满足时会请操作员确认是否仍要继续（默认不继续）。
+    """
+    rd = _log_read(ADC_CLK_ADDR, ADC_CLK_INDEX)
+    if not rd or len(rd) < 4:
+        print(f"❌ 读取 [{ADC_CLK_ADDR}:{ADC_CLK_INDEX}] 失败，无法确认 ADC 时钟配置")
+        return False
+
+    if list(rd[:4]) == ADC_CLK_EXPECT:
+        print(f"   ✅ ADC 时钟已选 16 MHz（[{ADC_CLK_ADDR}:{ADC_CLK_INDEX}] = {_hex(rd[:4])}）")
+        return True
+
+    print(f"❌ ADC 时钟不是 16 MHz：[{ADC_CLK_ADDR}:{ADC_CLK_INDEX}] = {_hex(rd[:4])}，"
+          f"期望 {_hex(ADC_CLK_EXPECT)}")
+    print(f"   对应 MTP 物理地址 {ADC_CLK_MPT_PHYS}（(0x1A8, 2)）的 [7:0] 应为 0x03，"
+          f"请先把时钟配置烧进 MTP 再测试")
     try:
-        # ADCBSY 写 1 触发（读-改-写，避免破坏同寄存器其它位）
-        _write_word_field(i2c, ADCBSY_ADDR, ADCBSY_INDEX,
-                          ADCBSY_BIT, 0x01 << ADCBSY_BIT, 1)
+        ans = input("   仍要继续测试？(y/N): ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    if ans != "y":
+        return False
+    print("   ⚠️  已在时钟未确认的情况下继续，ADC 采样结果可能不准确")
+    return True
+
+
+def _adc_setup(i2c):
+    """ADC 测试初始化：状态机选 INT → 启动 → ADC 测试使能 → 4 通道 → 数据格式。
+
+    必须在时钟检查通过后调用。
+    """
+    print(f"   状态机选 INT：  [{ADC_SM_INIT_ADDR}:{ADC_SM_INIT_INDEX}] = {_hex(ADC_SM_INIT_DATA)}")
+    execute_write(i2c, addr=ADC_SM_INIT_ADDR, index=ADC_SM_INIT_INDEX,
+                  write_data=list(ADC_SM_INIT_DATA))
+    time.sleep(0.01)
+
+    print(f"   启动状态机：    [{ADC_SM_START_ADDR}:{ADC_SM_START_INDEX}] = {_hex(ADC_SM_START_DATA)}")
+    execute_write(i2c, addr=ADC_SM_START_ADDR, index=ADC_SM_START_INDEX,
+                  write_data=list(ADC_SM_START_DATA))
+    time.sleep(0.01)
+
+    print(f"   ADC 测试使能：  [{ADC_TESTMODE_ADDR}:{ADC_TESTMODE_INDEX}] = {_hex(ADC_TESTMODE_DATA)}")
+    execute_write(i2c, addr=ADC_TESTMODE_ADDR, index=ADC_TESTMODE_INDEX,
+                  write_data=list(ADC_TESTMODE_DATA))
+    _log_read(ADC_TESTMODE_ADDR, ADC_TESTMODE_INDEX)
+    time.sleep(0.05)
+
+    print(f"   选择 4 通道：   [{ADC_CH_ADDR}:{ADC_CH_INDEX}] = {_hex(ADC_CH_DATA)}")
+    execute_write(i2c, addr=ADC_CH_ADDR, index=ADC_CH_INDEX, write_data=list(ADC_CH_DATA))
+    time.sleep(0.01)
+
+    print(f"   ADC 数据右对齐（忽略 adc_error）："
+          f"[{ADC_CTRL_ADDR}:{ADC_CTRL_INDEX}] = {_hex(ADC_CTRL_INIT_DATA)}")
+    execute_write(i2c, addr=ADC_CTRL_ADDR, index=ADC_CTRL_INDEX,
+                  write_data=list(ADC_CTRL_INIT_DATA))
+    time.sleep(0.01)
+    return True
+
+
+def _adc_sample(i2c, timeout_s=ADC_SAMPLE_DELAY):
+    """更新一次 ADC 数据并读取码值。
+
+    先写 [3:0] = 00 00 0D C1（更新 ADC 数据），等待 ≥1 ms 后读 [3:7]，
+    取右对齐的低 14 位。失败返回 None。
+    """
+    try:
+        execute_write(i2c, addr=ADC_CTRL_ADDR, index=ADC_CTRL_INDEX,
+                      write_data=list(ADC_CTRL_UPDATE_DATA))
         time.sleep(timeout_s)
-        rd = execute_read(i2c, ADC4_DR_ADDR, ADC4_DR_INDEX)
+        rd = execute_read(i2c, ADC_DATA_ADDR, ADC_DATA_INDEX)
         if not rd or len(rd) < 4:
             return None
         word = (rd[0] << 24) | (rd[1] << 16) | (rd[2] << 8) | rd[3]
-        return word & ADC4_DR_MASK
+        return word & ADC_DATA_MASK
     except Exception as e:
         print(f"   ⚠️ ADC 采样异常：{e}")
         return None
+
+
+def _adc_estimate_full_scale(rows, vref_mv=ADC_IN_VREF_MV, min_mv=ADC_FS_EST_MIN_MV):
+    """由实测 (DAC 电压, ADC code) 反推 ADC 满量程，用来核对 LSB 换算是否正确。
+
+    code ≈ FS × Vin / VREF  →  FS ≈ code × VREF / Vin
+
+    只取 |DAC 实测| ≥ min_mv 的点（小信号时 code 量化误差占比太大），取中位数。
+    返回 (满量程估计, 参与点数)；数据不足返回 (None, 0)。
+    """
+    ests = []
+    for row in rows:
+        vin_meas, code = row[1], row[3]
+        if vin_meas is None or code is None or code == 0:
+            continue
+        if abs(vin_meas) < min_mv:
+            continue
+        ests.append(code * vref_mv / abs(vin_meas))
+    if not ests:
+        return None, 0
+    ests.sort()
+    mid = len(ests) // 2
+    fs = ests[mid] if len(ests) % 2 else (ests[mid - 1] + ests[mid]) / 2.0
+    return fs, len(ests)
 
 
 def _ask_int(prompt, default, lo, hi):
@@ -384,28 +603,89 @@ def _ask_int(prompt, default, lo, hi):
     return val
 
 
-def _export_adc_table(rows, path_hint):
-    """把测量表导出为 xlsx，返回保存路径；失败返回 None。"""
+def _export_adc_table(rows, path_hint, summary=None):
+    """导出 ADC_IN 测量数据为 xlsx（两个工作表），返回保存路径；失败返回 None。
+
+    工作表 "ADC采样数据汇总"（逐点数据）：
+        A DAC设置值(mV)
+        B DAC测量值(mV)
+        C ADC code
+        D ADC转换电压(mV)
+        E 误差(mV) = DAC测量值 − ADC转换电压
+        F LSB      = 误差 / LSB电压
+
+    工作表 "测试结果"（仅最终结果）：测试时间、扫描范围、有效点、
+    DAC 最大偏差、ADC 最大误差、满量程自检、判定结论。
+
+    参数：
+        rows:    list - 内部行 [设定, DAC实测, DAC偏差, code, ADC电压, 误差, LSB]
+        summary: dict/None - 最终结果字段，键见 refresh 处的构造
+    """
     try:
         wb = openpyxl.Workbook()
+
+        # ---------- ① ADC采样数据汇总 ----------
         ws = wb.active
-        ws.title = "ADC_IN测量数据"
-        headers = ["设定电压(mV)", "万用表实测(mV)", "DAC偏差(mV)",
-                   "ADC码值", "ADC转换电压(mV)", "ADC误差(mV)", "ADC误差(LSB)"]
+        ws.title = ADC_SHEET_DATA
+        headers = ["DAC设置值(mV)", "DAC测量值(mV)", "ADC code",
+                   "ADC转换电压(mV)", "误差(mV)", "LSB"]
         ws.append(headers)
         for c in range(1, len(headers) + 1):
-            ws.cell(1, c).font = Font(bold=True)
+            cell = ws.cell(1, c)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
         for r in rows:
-            ws.append(r)
-        for col, width in zip("ABCDEFG", (16, 18, 14, 12, 18, 14, 14)):
+            # rows 内部顺序：[0]设定 [1]DAC实测 [2]DAC偏差 [3]code [4]ADC电压 [5]误差 [6]LSB
+            ws.append([r[0], r[1], r[3], r[4], r[5], r[6]])
+
+        for col, width in zip("ABCDEF", (16, 16, 11, 18, 14, 12)):
             ws.column_dimensions[col].width = width
+        ws.freeze_panes = "A2"
+
+        # ---------- ② 测试结果（仅最终结果） ----------
+        rs = wb.create_sheet(ADC_SHEET_RESULT)
+        rs.append(["项目", "内容"])
+        for c in (1, 2):
+            cell = rs.cell(1, c)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        s = summary or {}
+        for key, value in (
+            ("测试项", "ADC_IN_Voltage"),
+            ("测试时间", s.get("time", time.strftime("%Y-%m-%d %H:%M:%S"))),
+            ("扫描范围", s.get("range", "-")),
+            ("有效点", s.get("valid", "-")),
+            ("DAC 最大偏差", s.get("dac_err", "-")),
+            ("DAC 容差", s.get("dac_tol", f"±{ADC_IN_DAC_TOL_MV:.1f} mV")),
+            ("ADC 最大误差", s.get("adc_err", "-")),
+            ("ADC 满量程", s.get("full_scale", "-")),
+            ("ADC_VREF", s.get("vref", f"{ADC_IN_VREF_MV:.0f} mV")),
+            ("判定", s.get("verdict", "-")),
+        ):
+            rs.append([key, value])
+
+        # 判定行着色
+        verdict_row = rs.max_row
+        verdict = str(s.get("verdict", "")).upper()
+        fill = ("C6EFCE" if "PASS" in verdict or "通过" in verdict
+                else "FFC7CE" if "FAIL" in verdict or "未通过" in verdict
+                else None)
+        if fill:
+            for c in (1, 2):
+                rs.cell(verdict_row, c).fill = PatternFill("solid", fgColor=fill)
+
+        rs.column_dimensions["A"].width = 18
+        rs.column_dimensions["B"].width = 46
+
         out_dir = Path(__file__).resolve().parents[2] / ADC_IN_EXPORT_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / path_hint
         wb.save(path)
         return path
     except Exception as e:
-        print(f"   ⚠️ 导出 Excel 失败：{e}")
+        print(f"   ⚠️ 导出 Excel 失败：{type(e).__name__}: {e}")
         return None
 
 
@@ -465,6 +745,37 @@ def _vbg_trim_read(i2c=None):
     return ((rd[1] & 0x01) << 2) | ((rd[2] >> 6) & 0x03)
 
 
+def _tia_trim_read(i2c, channel):
+    """读取 [20:5] 中第 channel 路 TRIM_TIA_RESn<7:0>，失败返回 None。"""
+    bit_lo = TIA_CHANNELS[channel]["trim_lo"]
+    rd = _log_read(TIA_TRIM_ADDR, TIA_TRIM_INDEX)
+    if not rd or len(rd) < 4:
+        return None
+    return rd[3 - bit_lo // 8] & 0xFF
+
+
+def _tia_trim_write(i2c, channel, trim):
+    """把第 channel 路的 8 位 TRIM_TIA_RESn 写入 [20:5]，保留其它两路。"""
+    bit_lo = TIA_CHANNELS[channel]["trim_lo"]
+    return _write_word_field(i2c, TIA_TRIM_ADDR, TIA_TRIM_INDEX,
+                             bit_lo, 0xFF << bit_lo, trim & TIA_TRIM_MAX)
+
+
+def _tia_res_sel_read(i2c, channel):
+    """读取第 channel 路 RW_TIA_RES_SELn<2:0>，返回 (code, 跨阻Ω) 或 (None, None)。"""
+    spec = TIA_CHANNELS[channel]
+    res_sel = spec.get("res_sel")
+    if not res_sel:
+        return None, None
+    addr, index, bit_lo = res_sel
+    rd = _log_read(addr, index)
+    if not rd or len(rd) < 4:
+        return None, None
+    word = (rd[0] << 24) | (rd[1] << 16) | (rd[2] << 8) | rd[3]
+    code = (word >> bit_lo) & 0x07
+    return code, TIA_RES_TABLE.get(code)
+
+
 def _judge_vbg(value, extra_note=""):
     """按 VBG_LIMITS_MV（1235 ~ 1265 mV）判定，Typ 取自校准表。"""
     return _judge_by_standard("VBG_Voltage", value,
@@ -481,6 +792,92 @@ def _judge_vref(value, extra_note=""):
     """按 ADC_VREF_LIMITS_MV（1900 ~ 2100 mV）判定，Typ 取自校准表。"""
     return _judge_by_standard("ADC_VREF_Voltage", value,
                               extra_note=extra_note, limits=ADC_VREF_LIMITS_MV)
+
+
+def _tia_res_sel_write(i2c, channel, code):
+    """写第 channel 路 RW_TIA_RES_SELn<2:0>（读-改-写，保留寄存器其它字段）。
+
+    寄存器位置由 TIA_CHANNELS 的 res_sel 给出；未配置时返回 False（不写）。
+    """
+    res_sel = TIA_CHANNELS[channel].get("res_sel")
+    if not res_sel:
+        return False
+    addr, index, bit_lo = res_sel
+    return _write_word_field(i2c, addr, index, bit_lo, 0x07 << bit_lo, code & 0x07)
+
+
+#: _tia_select_res 的“用户取消”返回值（与“位置未知/读取失败”区分）
+_TIA_RES_CANCEL = object()
+
+
+def _tia_select_res(i2c, channel):
+    """交互式选择跨阻档位：打印编码表，回车沿用当前值，输入 0~7 改档。
+
+    返回：
+        (code, 阻值Ω)   - 选定的档位
+        (None, None)    - 寄存器位置未知或读取失败，调用方按默认 0.5 Ω 继续
+        (_TIA_RES_CANCEL, None) - 用户输入 q 取消，调用方应中止本次测试
+    """
+    spec = TIA_CHANNELS[channel]
+    field = spec["res_sel_field"]
+    if not spec.get("res_sel"):
+        print(f"   {field}：规范未给出寄存器位置，跳过阻值选择（按默认 0.5 Ω 判定）")
+        return None, None
+
+    cur_code, cur_r = _tia_res_sel_read(i2c, channel)
+    if cur_code is None:
+        print(f"   {field}：读取失败，跳过阻值选择（按默认 0.5 Ω 判定）")
+        return None, None
+
+    print(f"\n   当前跨阻档位 {field} = 3'b{cur_code:03b} → {cur_r} Ω")
+    print("   可选档位：")
+    for code, r in sorted(TIA_RES_TABLE.items()):
+        mark = " ← 当前" if code == cur_code else ""
+        print(f"      {code:03b} → {r:<4g} Ω   （200 mA 理论 {r * TIA_CURRENT_A * 1000:5.1f} mV）{mark}")
+
+    while True:
+        try:
+            raw = input(f"   选择档位 0~7（回车保持 {cur_code:03b}，q 取消）: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return _TIA_RES_CANCEL, None
+        if not raw:
+            return cur_code, cur_r
+        if raw in ("q", "quit", "exit"):
+            print("   ⏭️ 已取消")
+            return _TIA_RES_CANCEL, None
+        try:
+            code = int(raw, 2) if raw.strip("01") == "" and len(raw) <= 3 else int(raw, 10)
+        except ValueError:
+            print("   ⚠️ 请输入 0~7（或 3 位二进制，如 010），回车保持当前值")
+            continue
+        if not 0 <= code <= 7:
+            print("   ⚠️ 档位必须在 0~7 之间")
+            continue
+        r = TIA_RES_TABLE[code]
+        if not _tia_res_sel_write(i2c, channel, code):
+            print(f"   ❌ 写入 {field} 失败（回读异常），保持当前档位")
+            return None, None
+        readback_code, readback_r = _tia_res_sel_read(i2c, channel)
+        if readback_code == code:
+            print(f"   ✅ 已设置 {field} = 3'b{code:03b} → {r} Ω（回读一致）")
+        else:
+            print(f"   ⚠️ 写入后回读为 3'b{readback_code:03b}，与期望 3'b{code:03b} 不一致")
+            if readback_code is not None:
+                return readback_code, readback_r
+        return code, r
+
+
+def _judge_tia(channel, value, extra_note="", target_mv=TIA_TARGET_MV):
+    """按目标值 ±TIA_LIMIT_TOL 判定第 channel 路 TIA 电压，Typ 取自校准表。
+
+    目标值默认 100 mV（0.5 Ω × 200 mA）；选了别的跨阻档位时按
+    R × 200 mA 换算，判定范围随之等比缩放（默认 0.5 Ω 即 90~110 mV）。
+    """
+    name = TIA_CHANNELS[channel]["name"]
+    limits = (target_mv * (1 - TIA_LIMIT_TOL), target_mv * (1 + TIA_LIMIT_TOL))
+    return _judge_by_standard(f"{name}_Voltage", value, extra_note=extra_note,
+                              limits=limits, typ=target_mv)
 
 
 def _word_to_bytes(word):
@@ -552,8 +949,9 @@ def _sync_mtp_word_field(mtp_addr, mtp_index, bit_lo, mask, value, label):
         rows = [(a, i, h, k, l, m, mod) for a, i, h, k, l, m, mod in cfg.MTP_CONFIG_ROWS]
         others = [(r, op, list(vals)) for r, op, *vals in getattr(cfg, "OTHER_ROWS", [])]
         body, _crc = txt_builder.build_text(rows, others, "chips/OCD2361/mtp_config_table.py")
+        txt_builder.DST.parent.mkdir(parents=True, exist_ok=True)
         txt_builder.DST.write_text(body, encoding='utf-8')
-        txt_note = f"，已重新生成 {txt_builder.DST.name}"
+        txt_note = f"，已重新生成 {txt_builder.DST.relative_to(txt_builder.ROOT)}"
     except Exception as e:
         txt_note = f"，但 .txt 生成失败：{e}"
 
@@ -581,6 +979,15 @@ def _sync_vref_trim_to_table(trim):
     return _sync_mtp_word_field(VREF_TRIM_MPT_ADDR, VREF_TRIM_MPT_INDEX,
                                 VREF_TRIM_BIT_LO, VREF_TRIM_MASK,
                                 trim & VREF_TRIM_MAX, "RW_VREF_TRIM")
+
+
+def _sync_tia_trim_to_table(channel, trim):
+    """把修调后的 TRIM_TIA_RESn（[20:5] 的对应字节）同步到 MTP 配置表。"""
+    spec = TIA_CHANNELS[channel]
+    bit_lo = spec["trim_lo"]
+    return _sync_mtp_word_field(TIA_TRIM_MPT_ADDR, TIA_TRIM_MPT_INDEX,
+                                bit_lo, 0xFF << bit_lo, trim & TIA_TRIM_MAX,
+                                spec["trim_field"])
 
 
 def _osc_ensure_connected():
@@ -725,23 +1132,340 @@ def VCM_Voltage():
     mv = _voltage_test("VCM电压", addr=20, index=9, write_data=[0x00, 0x00, 0x01, 0xE0])
     _judge_by_standard("VCM_Voltage", mv)
     return mv
+
+
+# ---------------------- TIA 输出（菜单 7/8/9）---------------------
+# 规范 2.6~2.8：源表灌 200 mA → 万用表测输出脚 → 减去 VCM → 修调 TRIM_TIA_RESn
+
+def _tia_smu_ensure():
+    """确保源表可用；初始化被跳过/失败时尝试重新初始化。返回 True=可用。"""
+    idn = instr.smu_get_idn()
+    if not idn:
+        print("   ⚠️  源表未连接（初始化可能被跳过或失败），尝试重新初始化 ...")
+        if not instr.smu_init():
+            print("   ❌ 源表初始化失败：TIA 测试必须由源表灌 200 mA，无法继续")
+            return False
+        idn = instr.smu_get_idn()
+        if not idn:
+            print("   ❌ 源表重新初始化后仍无响应，无法继续")
+            return False
+
+    print(f"   源表：{idn}")
+    return True
+
+
+@contextmanager
+def _tia_current_source():
+    """源表灌流上下文：电流源 200 mA / 电压档 / 限压 5 V / 上电 → 校验 → 退出必关输出。
+
+    只下发五步（instrument_set.smu_source_current_on）：
+        :SOURce:FUNCtion CURR
+        :SENSe:FUNCtion "VOLTage"
+        :SOURce:CURRent:VLIMit 5
+        :SOURce:CURRent 0.2
+        :OUTPut:STATe ON
+    之后回读输出状态与源表实测 V/I，确认 200 mA 真的灌进被测脚。
+
+    任何一步失败都抛 RuntimeError（由 _tia_test 捕获打印），避免“看起来测了、
+    其实一点电流都没灌进去”的假数据进入判定和 MTP 表。
+    """
+    if not instr.smu_source_current_on(TIA_CURRENT_A, voltage_limit=TIA_SMU_VLIMIT_V):
+        raise RuntimeError("源表上电失败（终端已打印具体是哪条 SCPI 被拒）")
+    instr.smu_print_state("   源表配置回读：")
+
+    try:
+        state = instr.smu_output_state()
+        if state is not True:
+            raise RuntimeError(f"源表输出未打开（:OUTPut:STATe? = {state}）")
+
+        time.sleep(TIA_SETTLE_S)
+
+        # 回读源表自己的 V/I：确认 200 mA 真的灌出去了
+        v_smu, i_smu = instr.smu_measure()
+        if v_smu is None or i_smu is None:
+            print("   ⚠️  源表回读失败（无法确认输出），继续测量 ...")
+        else:
+            print(f"   源表输出：V = {v_smu:.4f} V，I = {i_smu * 1000:.3f} mA"
+                  f"（限压 {TIA_SMU_VLIMIT_V:.1f} V）")
+            if abs(i_smu) < TIA_CURRENT_A * TIA_CURRENT_MIN_RATIO:
+                if abs(v_smu) >= TIA_SMU_VLIMIT_V * 0.9:
+                    hint = ("电压已顶到限压，回路不通——"
+                            "检查被测脚是否接触、继电器/通道是否切对")
+                elif abs(v_smu) < 0.05:
+                    hint = "源表端电压≈0，输出可能仍处于关闭态"
+                else:
+                    hint = "回路电流明显偏小，检查接线与限压设置"
+                raise RuntimeError(f"源表没有灌出 {TIA_CURRENT_A * 1000:.0f} mA"
+                                   f"（实测 {i_smu * 1000:.3f} mA）：{hint}")
+
+        yield
+    finally:
+        try:
+            if not instr.smu_output_off():
+                print("   ⚠️  源表关闭输出返回失败，请手动确认面板 OUTPUT 已灭")
+        except Exception as e:
+            print(f"   ⚠️ 关闭源表输出异常：{e}")
+
+
+def _tia_trim_search(measure, target=TIA_TARGET_MV, initial=None):
+    """二分搜索使 TIA 电压最接近 target 的 8 位修调 code。
+
+    先测 0 / 255 两端判断电压随 code 的单调方向（规范是 code↑ 电压↑，
+    但按实测方向自适应），再二分 8 次收敛到跨过 target 的两个 code，
+    补测这两个 code 的邻近点，最后取偏差最小者。
+
+    参数：
+        measure: callable(code) -> 电压(mV) 或 None（测量失败会提前结束二分）
+        initial: dict - 已经测过的 {code: mV}，参与比较但不重复测量
+    返回：
+        (best_code, best_mv)；一次都没测到有效值返回 (None, None)
+    """
+    results = dict(initial or {})
+
+    def ev(code):
+        if code not in results:
+            results[code] = measure(code)
+        return results[code]
+
+    # 方向判定；端点测量失败时按“code↑ 电压↑”处理（cur 已在 results 里兜底）
+    v_lo, v_hi = ev(0), ev(TIA_TRIM_MAX)
+    increasing = True if None in (v_lo, v_hi) else v_hi >= v_lo
+
+    lo, hi = 0, TIA_TRIM_MAX
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        val = ev(mid)
+        if val is None:
+            break
+        if (val < target) == increasing:    # 电压偏低且方向为正 → 加大 code
+            lo = mid + 1
+        else:
+            hi = mid - 1
+
+    # 收敛点两侧的邻近 code 再补测，避免平台区/非严格单调时选错
+    for code in (hi - 1, hi, lo, lo + 1):
+        if 0 <= code <= TIA_TRIM_MAX:
+            ev(code)
+
+    valid = {c: v for c, v in results.items() if v is not None}
+    if not valid:
+        return None, None
+    best_code = min(valid, key=lambda c: (abs(valid[c] - target), c))
+    return best_code, valid[best_code]
+
+
+def _tia_vcm(i2c):
+    """取 VCM 电压（mV）：已记录则沿用（可输入 m 重测），否则测量并记录。"""
+    cached = TIA_VCM_CACHE["mv"]
+    if cached is not None:
+        print(f"   已记录 VCM = {cached:.3f} mV")
+        try:
+            ans = input("   回车沿用该 VCM，输入 m 重新测量: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            ans = ""
+        if ans != "m":
+            return cached
+
+    if not _confirm_connection("请确定万用表接 WO（测 VCM），源表输出保持关闭"):
+        return None
+    execute_write(i2c, addr=20, index=9, write_data=TIA_VCM_SEL)
+    _log_read(20, 9)
+    time.sleep(TIA_SETTLE_S)
+    vcm = instr.dmm_measure_single_voltage()
+    if vcm is None:
+        print("❌ VCM 测量失败，跳过本次测试")
+        return None
+    TIA_VCM_CACHE["mv"] = vcm
+    print(f"   VCM = {vcm:.3f} mV（已记录）")
+    return vcm
+
+
+def _tia_state_machine_init(i2c):
+    """初始化并启动测试状态机：先 [1:32]，再 [1:31]。
+
+    必须在写 TIA 通道 [20:9] 之前执行，否则通道切换不会生效。
+    返回 True（写操作本身无回读校验，异常会直接抛出）。
+    """
+    init_hex = ' '.join(f'{b:02X}' for b in TIA_SM_INIT_DATA)
+    print(f"   初始化状态机：[{TIA_SM_ADDR}:{TIA_SM_INIT_INDEX}] = {init_hex}")
+    execute_write(i2c, addr=TIA_SM_ADDR, index=TIA_SM_INIT_INDEX,
+                  write_data=list(TIA_SM_INIT_DATA))
+    time.sleep(0.01)   # 寄存器写间隔
+
+    start_hex = ' '.join(f'{b:02X}' for b in TIA_SM_START_DATA)
+    print(f"   启动状态机：  [{TIA_SM_ADDR}:{TIA_SM_START_INDEX}] = {start_hex}")
+    execute_write(i2c, addr=TIA_SM_ADDR, index=TIA_SM_START_INDEX,
+                  write_data=list(TIA_SM_START_DATA))
+    time.sleep(0.01)   # 寄存器写间隔
+    return True
+
+
+def _tia_test(channel):
+    """TIA_OUTn 电压测试与修调（规范 2.6~2.8，菜单 7/8/9）。
+
+    流程：
+      1. 取 VCM 电压：已记录就沿用，否则写 [20:9] = 00 00 01 E0 测 WO 并记录
+      2. 初始化状态机 [1:32]、启动状态机 [1:31]
+      3. 选择跨阻档位 RW_TIA_RES_SELn（[20:0] 的 [12:10] / [15:13] / [18:16]）
+      4. 写 TIA 通道 [20:9]，源表往 src_pin 灌 200 mA（电压限值 5 V），
+         万用表测 meas_pin，TIA_OUTn 电压 = meas_pin − VCM
+         跨阻 R = TIA_OUTn 电压 / 200 mA
+      5. 判定：目标电压 = R × 200 mA，范围 ±10%；不通过时二分搜索
+         TRIM_TIA_RESn<7:0>（[20:5] 的 [7:0] / [15:8] / [23:16]）
+         （规范：电压偏大 → code 调小，偏小 → code 调大）
+      6. 写回最优 code 复测并判定，最后同步到 MTP 配置表（[20:5] ↔ phys 444）
+    """
+    spec = TIA_CHANNELS[channel]
+    name, sel = spec["name"], spec["sel"]
+    src_pin, meas_pin = spec["src"], spec["meas"]
+    field = spec["trim_field"]
+    ma = TIA_CURRENT_A * 1000.0
+
+    print(f"\n🚀 执行 {name} 电压修调测试 ...")
+    print(f"   判定范围 = 目标电压 ±{TIA_LIMIT_TOL * 100:.0f}%"
+          f"（0.5 Ω 档即 {TIA_LIMITS_MV[0]:.0f} ~ {TIA_LIMITS_MV[1]:.0f} mV）")
+    print(f"   源表往 {src_pin} 灌 {ma:.0f} mA（限压 {TIA_SMU_VLIMIT_V:.1f} V），"
+          f"万用表测 {meas_pin}，减去 VCM 得到 {name} 电压")
+
+    i2c = _get_i2c()
+
+    # ⓪ 确认源表在线（初始化被跳过/失败时尝试重建连接）
+    if not _tia_smu_ensure():
+        return None
+
+    # ① VCM（此时源表不输出）
+    vcm = _tia_vcm(i2c)
+    if vcm is None:
+        return None
+
+    # ② 选通道 + 灌流
+    if meas_pin != "WO":
+        note = f"请确定源表接 {src_pin}、万用表改接 {meas_pin}"
+    else:
+        note = f"请确定源表接 {src_pin}、万用表接 {meas_pin}"
+    if not _confirm_connection(note):
+        return None
+
+    # 状态机初始化 + 启动（必须在写 TIA 通道 [20:9] 之前）
+    _tia_state_machine_init(i2c)
+
+    # 跨阻档位选择（RW_TIA_RES_SELn，规范默认 000 = 0.5 Ω）
+    sel_code, r_cfg = _tia_select_res(i2c, channel)
+    if sel_code is _TIA_RES_CANCEL:
+        return None
+    if sel_code is None:
+        r_cfg = TIA_RES_TABLE[TIA_RES_DEFAULT_CODE]
+        sel_code = TIA_RES_DEFAULT_CODE
+
+    execute_write(i2c, addr=20, index=9, write_data=sel)
+    _log_read(20, 9)
+    time.sleep(TIA_SETTLE_S)
+
+    # 目标电压随档位换算：V = R × 200 mA，判定范围 ±10%
+    target_mv = r_cfg * ma
+    limit_lo = target_mv * (1 - TIA_LIMIT_TOL)
+    limit_hi = target_mv * (1 + TIA_LIMIT_TOL)
+    print(f"   {spec['res_sel_field']} = 3'b{sel_code:03b} → {r_cfg} Ω，"
+          f"目标电压 {target_mv:.1f} mV（判定 {limit_lo:.1f} ~ {limit_hi:.1f} mV）")
+
+    try:
+        with _tia_current_source():
+            raw = instr.dmm_measure_single_voltage()
+            if raw is None:
+                print("❌ 输出脚电压测量失败，跳过本次测试")
+                return None
+            mv = raw - vcm
+            r_meas = mv / ma          # mV / mA = Ω
+            print(f"   {meas_pin} = {raw:.3f} mV，"
+                  f"{name} = {meas_pin} − VCM = {mv:.3f} mV")
+            print(f"   跨阻 R = {mv:.3f} mV / {ma:.0f} mA = {r_meas:.4f} Ω"
+                  + (f"（配置值 {r_cfg} Ω，偏差 {r_meas - r_cfg:+.4f} Ω）"
+                     if r_cfg is not None else ""))
+
+            cur = _tia_trim_read(i2c, channel)
+            if cur is None:
+                print(f"   读取 {field} 失败，跳过修调")
+                _judge_tia(channel, mv, target_mv=target_mv)
+                return mv
+            print(f"   当前 {field} = {cur}")
+
+            passed = _judge_tia(channel, mv, extra_note=f"{field}={cur}",
+                                target_mv=target_mv)
+            if passed is True:
+                print(f"{name} 测试通过, 测量值: {mv:.3f} mV（R={r_meas:.4f} Ω）, "
+                      f"修调值为: {cur}, 无需修调")
+                print(f"✅ {name} 测试完成")
+                return mv
+
+            def measure_at(code):
+                """写修调 code 后测 TIA 电压（mV），失败返回 None。"""
+                if not _tia_trim_write(i2c, channel, code):
+                    print(f"   修调值={code:3d}: 写入失败（回读异常），跳过")
+                    return None
+                time.sleep(TIA_SETTLE_S)
+                val_raw = instr.dmm_measure_single_voltage()
+                if val_raw is None:
+                    print(f"   修调值={code:3d}: 电压测量失败，跳过")
+                    return None
+                val = val_raw - vcm
+                print(f"   修调值={code:3d}: 电压={val:8.3f} mV, "
+                      f"R={val / ma:7.4f} Ω, "
+                      f"误差={abs(val - target_mv):7.3f} mV")
+                return val
+
+            print(f"   开始二分搜索 {field}（0~{TIA_TRIM_MAX}，"
+                  f"code 增大电压增大/减小均可）...")
+            best_code, _best_mv = _tia_trim_search(measure_at, target=target_mv,
+                                                  initial={cur: mv})
+            if best_code is None:
+                print(f"❌ {name} 修调失败：扫描期间没有测到有效电压")
+                return None
+
+            # 写回最优修调值并复测
+            if not _tia_trim_write(i2c, channel, best_code):
+                print(f"❌ {name} 修调失败：写回修调值 {best_code} 时回读异常")
+                return None
+            time.sleep(TIA_SETTLE_S)
+            best_raw = instr.dmm_measure_single_voltage()
+            if best_raw is None:
+                print(f"❌ {name} 修调失败：写回修调值 {best_code} 后测量失败")
+                return None
+            best_vol = best_raw - vcm
+    except RuntimeError as e:
+        print(f"❌ {name} 中止：{e}")
+        return None
+    except Exception as e:
+        print(f"❌ {name} 测试异常：{type(e).__name__}: {e}")
+        return None
+
+    passed = _judge_tia(channel, best_vol, extra_note=f"{field}={best_code}",
+                        target_mv=target_mv)
+    result = "成功" if passed is True else "失败"
+    print(f"{name} 修调{result}, 测量值: {best_vol:.3f} mV"
+          f"（R={best_vol / ma:.4f} Ω）, 修调值为: {best_code}")
+
+    # 修调完成后，把 TRIM_TIA_RESn 同步到 MTP 配置表（[20:5] ↔ MTP phys 444）
+    _sync_tia_trim_to_table(channel, best_code)
+
+    print(f"✅ {name} 测试完成")
+    return best_vol
+
+
 def TIA_OUT1_Voltage():
-    """TIA_OUT1 电压测试。"""
-    mv = _voltage_test("TIA_OUT1电压", addr=20, index=9, write_data=[0x00, 0x00, 0x01, 0x37])
-    _judge_by_standard("TIA_OUT1_Voltage", mv)
-    return mv
+    """TIA_OUT1：源表给 UO 灌 200 mA、万用表测 WO，减 VCM 得电压，判定/修调 TRIM_TIA_RES0。"""
+    return _tia_test(1)
+
 
 def TIA_OUT2_Voltage():
-    """TIA_OUT2 电压测试。"""
-    mv = _voltage_test("TIA_OUT2电压", addr=20, index=9, write_data=[0x00, 0x00, 0x01, 0x77])
-    _judge_by_standard("TIA_OUT2_Voltage", mv)
-    return mv
+    """TIA_OUT2：源表给 VO 灌 200 mA、万用表测 WO，减 VCM 得电压，判定/修调 TRIM_TIA_RES1。"""
+    return _tia_test(2)
+
 
 def TIA_OUT3_Voltage():
-    """TIA_OUT3 电压测试。"""
-    mv =_voltage_test("TIA_OUT3电压", addr=20, index=9, write_data=[0x00, 0x00, 0x01, 0xB7])
-    _judge_by_standard("TIA_OUT3_Voltage", mv)
-    return mv
+    """TIA_OUT3：源表给 WO 灌 200 mA、万用表测 UO，减 VCM 得电压，判定/修调 TRIM_TIA_RES2。"""
+    return _tia_test(3)
+
 
 def LDO15_Voltage():
     """LDO15 电压测试。"""
@@ -894,25 +1618,41 @@ def ADC_VREF_Voltage():
     return best_mv
 
 def ADC_IN_Voltage():
-    """ADC_IN 测试（菜单 [14]）：UART 控制 DAC 输出电压，ADC 采样并列表。
+    """ADC_IN 测试（菜单 [14]）：DAC 从 W 脚输入电压，ADC 采样并列表。
 
-    流程（参考 OCD2810 的 DAC/ADC 测试）：
-      1. 写 [20:9] = 00 00 03 20 进入 ADC_IN 测试模式（TEST_ANA=1100）；
-      2. 交互式选择扫描范围（上限固定 2000 mV）与步进（默认 10 mV）；
-      3. 每点通过 UART 下发 `spi_cmd_set_val mV <V>`，万用表实测 WO 电压；
-      4. 若已配置 ADC 寄存器，触发一次转换并读取 ADC4_DR<13:0>，
-         按 `Vadc = code * ADC_VREF / 4096` 换算电压；
-      5. 逐点打印表格（设定 / 实测 / DAC 偏差 / ADC 码值 / ADC 电压 / ADC 误差），
-         结束后 DAC 回 0，可选导出 xlsx。
+    流程（寄存器顺序不能改）：
+      1. **前置检查**：读 [20:2]，必须为 00 00 00 03（ADC 时钟 16 MHz，
+         MTP phys 432 = 0x03）；不满足时提示并中止；
+      2. 状态机选 INT：[1:32] = 00 43 FD 22 → 启动：[1:31] = 00 01 02 00；
+      3. ADC 测试使能：[20:9] = 00 00 03 20（TEST_ANA = 1100）；
+      4. 选择 4 通道：[3:1] = 00 00 00 10；数据右对齐、忽略 adc_error：
+         [3:0] = 00 00 0D 81；
+      5. 交互式选择扫描范围（上限固定 2000 mV）与步进（默认 10 mV）；
+      6. 每点：UART 下发 `spi_cmd_set_val mV <V>` 设 DAC → 万用表实测 WO 电压 →
+         写 [3:0] = 00 00 0D C1 更新 ADC → 读 [3:7] 得 ADC code；
+         按 `Vadc = code × ADC_VREF / ADC_FULL_SCALE` 换算，逐点打印
+         `DAC实测 | ADC code | ADC转换电压`；
+         扫完用实测数据反推满量程做 LSB 换算自检（见 _adc_estimate_full_scale）；
+      7. 结束后 DAC 回 0，记录结果，可选导出 xlsx。
 
-    判定：以 DAC 输出最大偏差 ≤ ADC_IN_DAC_TOL_MV 作为线性度判定；
-    ADC 列仅在 ADCBSY_ADDR / ADC4_DR_ADDR 配置后有效（否则显示 --）。
+    判定：DAC 输出最大偏差 ≤ ADC_IN_DAC_TOL_MV。
     """
     print("\n🚀 执行 ADC_IN（DAC 输出 + ADC 采样）测试 ...")
     _confirm_connection("请确定万用表连接WO")
 
+    i2c = _get_i2c()
+
+    # ---- ① 前置检查：ADC 时钟必须已选 16 MHz ----
+    print("\n   检查 ADC 时钟配置 ...")
+    if not _adc_check_clock(i2c):
+        print("❌ ADC 时钟前置检查未通过，测试终止")
+        _ensure_result_session()
+        result_log.record("ADC_IN_Voltage", None, "mV", result="FAIL",
+                          note="ADC 时钟未选 16 MHz（[20:2] ≠ 00 00 00 03）")
+        return None
+
     # ---- 扫描参数（可交互修改）----
-    print(f"   DAC 输出电压上限 {ADC_IN_VMAX_MV} mV（规格 WO 输入不超过 2 V）")
+    print(f"\n   DAC 输出电压上限 {ADC_IN_VMAX_MV} mV（规格 WO 输入不超过 2 V）")
     start = _ask_int("起始电压 mV", ADC_IN_DAC_START_MV, 0, ADC_IN_VMAX_MV)
     stop = _ask_int("结束电压 mV", ADC_IN_VMAX_MV, 0, ADC_IN_VMAX_MV)
     step = _ask_int("步进 mV", ADC_IN_DAC_STEP_MV, 1, ADC_IN_VMAX_MV)
@@ -923,26 +1663,21 @@ def ADC_IN_Voltage():
         print("❌ 扫描点为空，测试终止")
         return None
 
-    adc_on = _adc_available()
     print(f"   扫描 {points[0]} ~ {points[-1]} mV，步进 {step} mV，共 {len(points)} 点，"
           f"单点容差 ±{ADC_IN_DAC_TOL_MV:.1f} mV")
-    if adc_on:
-        print(f"   ADC 采样已启用：ADC4_DR mask=0x{ADC4_DR_MASK:X}，"
-              f"VREF={ADC_IN_VREF_MV:.0f} mV")
-    else:
-        print("   ⚠️ 未配置 ADCBSY / ADC4_DR 地址，仅做 DAC 输出测量（ADC 列显示 --）")
 
-    i2c = _get_i2c()
-    execute_write(i2c, addr=20, index=9, write_data=[0x00, 0x00, 0x03, 0x20])
-    _log_read(20, 9)
-    time.sleep(0.2)
+    # ---- ② ~ ④ ADC 初始化 ----
+    print("\n   ADC 初始化 ...")
+    _adc_setup(i2c)
 
-    lsb_mv = ADC_IN_VREF_MV / 4096.0
+    lsb_mv = ADC_IN_VREF_MV / ADC_FULL_SCALE
+    print(f"   ADC 换算：Vadc = code × {ADC_IN_VREF_MV:.0f} mV / {ADC_FULL_SCALE}"
+          f"（1 LSB = {lsb_mv:.4f} mV）")
     rows, max_dac_err, max_adc_err = [], 0.0, 0.0
 
     print("\n   " + "-" * 84)
-    print(f"   {'设定(mV)':>9} {'实测(mV)':>10} {'DAC偏差':>9} "
-          f"{'ADC码值':>8} {'ADC电压(mV)':>12} {'ADC误差(mV)':>12} {'误差(LSB)':>10}")
+    print(f"   {'设定(mV)':>9} {'DAC测量值':>11} {'DAC偏差':>9} "
+          f"{'ADC code':>9} {'ADC电压(mV)':>12} {'误差(DAC-ADC)':>14} {'LSB':>9}")
     print("   " + "-" * 84)
 
     for vin in points:
@@ -962,13 +1697,14 @@ def ADC_IN_Voltage():
         dac_err = meas - vin
         max_dac_err = max(max_dac_err, abs(dac_err))
 
-        code = _adc_sample(i2c) if adc_on else None
+        # 每次 DAC 电压变化后：先更新 ADC 数据，再读码值
+        code = _adc_sample(i2c)
         if code is None:
             v_adc = adc_err = adc_lsb = None
             code_txt = adc_txt = err_txt = lsb_txt = "--"
         else:
             v_adc = code * lsb_mv
-            adc_err = v_adc - meas          # ADC 转换电压与万用表实测的差
+            adc_err = meas - v_adc          # 误差 = DAC测量值 − ADC转换电压
             adc_lsb = adc_err / lsb_mv
             max_adc_err = max(max_adc_err, abs(adc_err))
             code_txt = f"{code}"
@@ -980,8 +1716,20 @@ def ADC_IN_Voltage():
                      None if v_adc is None else round(v_adc, 3),
                      None if adc_err is None else round(adc_err, 3),
                      None if adc_lsb is None else round(adc_lsb, 3)])
-        print(f"   {vin:9d} {meas:10.3f} {dac_err:+9.3f} "
-              f"{code_txt:>8} {adc_txt:>12} {err_txt:>12} {lsb_txt:>10}")
+        print(f"   {vin:9d} {meas:11.3f} {dac_err:+9.3f} "
+              f"{code_txt:>9} {adc_txt:>12} {err_txt:>14} {lsb_txt:>9}")
+
+        # 每一次测量都写入结果记录：实测值列放 ADC code，备注里带上电压换算
+        _ensure_result_session()
+        point_note = f"设定 {vin} mV，DAC测量 {meas:.3f} mV"
+        if code is not None:
+            point_note += (f"，ADC电压 {v_adc:.3f} mV，"
+                           f"误差(DAC−ADC) {adc_err:+.3f} mV（{adc_lsb:+.2f} LSB）")
+        else:
+            point_note += "，ADC 读取失败"
+        result_log.record(f"ADC_IN_{vin}mV", code, "code",
+                          result="MEASURED" if code is not None else "FAIL",
+                          note=point_note)
 
     print("   " + "-" * 84)
 
@@ -994,29 +1742,67 @@ def ADC_IN_Voltage():
     valid = [r for r in rows if r[1] is not None]
     if not valid:
         print("❌ ADC_IN 测试失败：无有效测量点")
+        _ensure_result_session()
+        result_log.record("ADC_IN_Voltage", None, "mV", result="FAIL", note="无有效测量点")
         return None
 
+    adc_rows = [r for r in rows if r[3] is not None]
     print(f"\n   有效点 {len(valid)}/{len(points)}，DAC 最大偏差 {max_dac_err:.3f} mV")
-    if adc_on:
-        adc_rows = [r for r in rows if r[5] is not None]
-        if adc_rows:
-            print(f"   ADC 有效点 {len(adc_rows)}/{len(rows)}，"
-                  f"ADC 最大误差 {max_adc_err:.3f} mV（{max_adc_err / lsb_mv:.2f} LSB）")
+    if adc_rows:
+        print(f"   ADC 有效点 {len(adc_rows)}/{len(rows)}，"
+              f"ADC 最大误差 {max_adc_err:.3f} mV（{max_adc_err / lsb_mv:.2f} LSB）")
+    else:
+        print("   ⚠️ 所有点都未读到 ADC code，请检查 [3:7] 与状态机配置")
+
+    # LSB 换算自检：用实测数据反推满量程，确认 ADC_FULL_SCALE / VREF 用得对不对
+    fs_est, fs_pts = _adc_estimate_full_scale(rows)
+    if fs_est is not None:
+        ratio = fs_est / ADC_FULL_SCALE
+        print(f"   LSB 换算自检：推断满量程 ≈ {fs_est:.0f}"
+              f"（配置 {ADC_FULL_SCALE}，比值 {ratio:.2f}，{fs_pts} 点）")
+        if 0.8 <= ratio <= 1.25:
+            print("   ✅ LSB 换算与实测一致")
+        elif 3.2 <= ratio <= 5.0:
+            print(f"   ⚠️ 实测约为配置值的 {ratio:.1f} 倍：数据寄存器可能是 14 bit 满量程，"
+                  f"请把 ADC_FULL_SCALE 改为 16384 后重测（当前 ADC 电压/误差列会偏大 {ratio:.1f} 倍）")
+        else:
+            print(f"   ⚠️ 推断满量程与配置相差 {ratio:.2f} 倍，请核对 ADC_VREF、"
+                  f"数据右对齐设置与通道选择")
 
     passed = max_dac_err <= ADC_IN_DAC_TOL_MV
     print(f"{'✅' if passed else '❌'} ADC_IN {'pass' if passed else 'failed'}："
           f"DAC 线性度容差 ±{ADC_IN_DAC_TOL_MV:.1f} mV，实测最大偏差 {max_dac_err:.3f} mV")
+    _ensure_result_session()
+    note = f"有效点 {len(valid)}/{len(points)}"
+    if adc_rows:
+        note += f"，ADC 最大误差 {max_adc_err:.3f} mV（{max_adc_err / lsb_mv:.2f} LSB）"
+    if fs_est is not None:
+        note += f"，满量程推断 {fs_est:.0f}（配置 {ADC_FULL_SCALE}）"
+    result_log.record("ADC_IN_Voltage", max_dac_err, "mV",
+                      min_v=None, max_v=ADC_IN_DAC_TOL_MV,
+                      result="PASS" if passed else "FAIL", note=note)
 
-    # 可选导出
-    try:
-        choice = input("\n   是否导出测量表格到 Save_Results? (y/N): ").strip().lower()
-    except (EOFError, KeyboardInterrupt):
-        choice = ""
-    if choice == "y":
-        name = time.strftime("ADC_IN_测量数据_%Y%m%d_%H%M%S.xlsx")
-        saved = _export_adc_table(rows, name)
-        if saved:
-            print(f"   ✅ 已导出：{saved}")
+    # 逐点数据自动存档（不再询问，保证每一次测量值都留档）
+    name = time.strftime("ADC_IN_测量数据_%Y%m%d_%H%M%S.xlsx")
+    adc_max_lsb = max_adc_err / lsb_mv if adc_rows else None
+    summary = {
+        "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "range": f"{points[0]} ~ {points[-1]} mV，步进 {step} mV，共 {len(points)} 点",
+        "valid": f"{len(valid)}/{len(points)}（ADC 有效 {len(adc_rows)}）",
+        "dac_err": f"{max_dac_err:.3f} mV",
+        "dac_tol": f"±{ADC_IN_DAC_TOL_MV:.1f} mV",
+        "adc_err": (f"{max_adc_err:.3f} mV（{adc_max_lsb:.2f} LSB）"
+                    if adc_rows else "无有效 ADC 数据"),
+        "full_scale": (f"配置 {ADC_FULL_SCALE}，实测推断 {fs_est:.0f}（比值 {fs_est / ADC_FULL_SCALE:.2f}）"
+                       if fs_est is not None else f"配置 {ADC_FULL_SCALE}（数据不足，未推断）"),
+        "vref": f"{ADC_IN_VREF_MV:.0f} mV（1 LSB = {lsb_mv:.4f} mV）",
+        "verdict": "PASS" if passed else "FAIL",
+    }
+    saved = _export_adc_table(rows, name, summary)
+    if saved:
+        print(f"   ✅ 测量数据已保存（工作表：{ADC_SHEET_DATA} / {ADC_SHEET_RESULT}）：{saved}")
+    else:
+        print("   ⚠️ 测量数据保存失败（txt 记录不受影响）")
 
     print("✅ ADC_IN 测试完成")
     return max_dac_err
@@ -1788,14 +2574,18 @@ def _mtp_select_template():
     root = tk.Tk()
     root.withdraw()
     root.attributes('-topmost', True)
+    save_dir = Path(__file__).resolve().parents[2] / "Save_Results"
     try:
-        path = filedialog.askopenfilename(
-            title="选择 MTP 烧录模板（.xlsx 或 mtp_config_table.txt）",
-            filetypes=[("MTP 模板", "*.xlsx *.txt"),
-                       ("Excel 文件", "*.xlsx"),
-                       ("文本配置表", "*.txt"),
-                       ("所有文件", "*.*")],
-        )
+        kwargs = {
+            "title": "选择 MTP 烧录模板（.xlsx 或 mtp_config_table.txt）",
+            "filetypes": [("MTP 模板", "*.xlsx *.txt"),
+                          ("Excel 文件", "*.xlsx"),
+                          ("文本配置表", "*.txt"),
+                          ("所有文件", "*.*")],
+        }
+        if save_dir.exists():
+            kwargs["initialdir"] = str(save_dir)   # txt 默认生成在 Save_Results
+        path = filedialog.askopenfilename(**kwargs)
     finally:
         root.destroy()
     return path or None

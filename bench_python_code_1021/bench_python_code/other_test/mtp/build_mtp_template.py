@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-把工程内的 MTP 配置表 (chips/OCD2361/mtp_config_table.py) 输出成 Excel 表格，
+把工程内的 MTP 配置表输出成 Excel 表格，
 供程序「菜单 [32] MTP 全片擦除+烧录+校验」直接加载，也便于在 Excel 中查看/对照。
 
 数据来源（默认）：chips/OCD2361/mtp_config_table.py
     在该文件中查看/修改 MTP_CONFIG_ROWS，运行本脚本即可重新生成表格。
     python other_test/mtp/build_mtp_template.py
     python other_test/mtp/build_mtp_template.py --from-source   # 改从原始 xlsx 读取
+    python other_test/mtp/build_mtp_template.py --from-txt Save_Results/mtp_config_table.txt
+                                    # 从导出的 .txt 配置表生成（菜单 e 也走这条路径）
 
 输入格式：MTP_CONFIG_ROWS = [(ADDR, INDEX, B31, B23, B15, B7, 模块号), ...]
 
 输出：MTP_配置寄存器（测试版本2）_烧录模板.xlsx
+      （--from-txt 时默认输出到该 txt 同目录，文件名 <txt名>_烧录模板.xlsx）
       · 工作表 "MTP批量模板"：程序可直接读取（表头 2 行 + PROGRAM 数据）
         列：OPERATION / ADDR / INDEX / [31:24] / [23:16] / [15:8] / [7:0]
             / 物理地址 / 寄存器ADDR / 计入CRC
@@ -102,6 +105,71 @@ def parse_from_module():
     other = [(r, [op, addr, index, *data])
              for r, op, addr, index, *data in cfg.OTHER_ROWS] if getattr(cfg, "OTHER_ROWS", None) else []
     return program, other
+
+
+def _txt_int(token):
+    """txt 里的整数：0x 前缀按 HEX，其余按十进制。"""
+    s = str(token).strip()
+    return int(s, 16) if s.lower().startswith("0x") else int(s, 10)
+
+
+def parse_from_txt(path):
+    """从 mtp_config_table.txt（build_mtp_config_txt.py 的产物）读取数据。
+
+    数据行格式：
+        行号  ADDR  INDEX  [31:24]  [23:16]  [15:8]  [7:0]  PHYS  CRC?  模块
+    「源表中未烧录的行」小节（OPERATION 不是 PROGRAM）收进 other，供说明页展示。
+
+    返回与 parse_source() 相同的结构。
+    """
+    program, other = [], []
+    for lineno, line in enumerate(Path(path).read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        parts = line.split()
+        if len(parts) < 7 or not parts[0].isdigit():
+            continue                       # 说明行 / 表头 / 图例
+        if not parts[1].lower().startswith("0x"):
+            # 非 PROGRAM 参考行：行号 OPERATION [31:24] [23:16] [15:8] [7:0]
+            try:
+                data = [_txt_int(p) for p in parts[2:6]]
+            except ValueError:
+                continue
+            if len(data) == 4:
+                other.append((int(parts[0]), [parts[1], "", "", *data]))
+            continue
+        try:
+            addr = _txt_int(parts[1])
+            index = _txt_int(parts[2])
+            data = [_txt_int(p) for p in parts[3:7]]
+        except ValueError as e:
+            raise ValueError(f"第 {lineno} 行解析失败：{e}")
+        if not all(0 <= b <= 0xFF for b in data):
+            raise ValueError(f"第 {lineno} 行数据超出 1 字节：{parts[3:7]}")
+        mod = parts[9] if len(parts) > 9 else None
+        program.append((addr, index, data, mod))
+    return program, other
+
+
+def txt_header_crc(path):
+    """取 txt 文件头里记录的 CRC32（没有则返回 None）。"""
+    import re
+    m = re.search(r"CRC32\s*:\s*0x([0-9A-Fa-f]+)",
+                  Path(path).read_text(encoding="utf-8", errors="replace"))
+    return int(m.group(1), 16) if m else None
+
+
+def is_mtp_config_txt(path):
+    """判断一个 .txt 是不是 MTP 配置表（而不是测试结果记录）。
+
+    先看文件名，再看文件头/表头，避免误把测试结果 txt 当成配置表。
+    """
+    p = Path(path)
+    if "mtp_config_table" in p.name.lower():
+        return True
+    try:
+        head = p.read_text(encoding="utf-8", errors="replace")[:2000]
+    except Exception:
+        return False
+    return "MTP 配置寄存器表" in head or ("PHYS" in head and "[31:24]" in head)
 
 
 def compute_crc(program):
@@ -236,24 +304,96 @@ def build_info_sheet(wb, program, other, burn_addrs, crc_addrs, final_crc, origi
     _style_range(info, 2, info.max_row, 1, 2)
 
 
+def build_workbook(program, other, origin, expected_crc=None):
+    """按 program/other 生成工作簿，返回 (wb, burn_addrs, crc_addrs, final_crc)。"""
+    burn_addrs, crc_addrs, final_crc = compute_crc(program)
+    if not burn_addrs:
+        raise ValueError("没有可烧录的数据行")
+    if expected_crc is not None and expected_crc != final_crc:
+        print(f"⚠️ 文件头记录的 CRC32 0x{expected_crc:08X} 与按数据重算的 "
+              f"0x{final_crc:08X} 不一致（配置表被改过但未重新生成？）")
+
+    wb = openpyxl.Workbook()
+    build_main_sheet(wb, program, final_crc)
+    build_info_sheet(wb, program, other, burn_addrs, crc_addrs, final_crc, origin)
+    return wb, burn_addrs, crc_addrs, final_crc
+
+
+def txt_to_template(txt_path, xlsx_path=None):
+    """把 MTP 配置表 txt 转成烧录模板 Excel。
+
+    参数：
+        txt_path:   str/Path - mtp_config_table.txt
+        xlsx_path:  str/Path - 输出路径；None 则输出到 txt 同目录的
+                    <txt名>_烧录模板.xlsx
+    返回：
+        (ok, 路径或错误信息)
+    """
+    txt_path = Path(txt_path)
+    if xlsx_path is None:
+        xlsx_path = txt_path.with_name(txt_path.stem + "_烧录模板.xlsx")
+    xlsx_path = Path(xlsx_path)
+
+    try:
+        program, other = parse_from_txt(txt_path)
+    except Exception as e:
+        return False, f"解析配置表失败：{type(e).__name__}: {e}"
+    if not program:
+        return False, "文本中没有 PROGRAM 数据行（不是 MTP 配置表？）"
+
+    try:
+        wb, burn_addrs, crc_addrs, final_crc = build_workbook(
+            program, other, str(txt_path), txt_header_crc(txt_path))
+    except Exception as e:
+        return False, f"生成表格失败：{type(e).__name__}: {e}"
+
+    xlsx_path.parent.mkdir(parents=True, exist_ok=True)
+    replaced = xlsx_path.exists()
+    try:
+        wb.save(xlsx_path)
+    except PermissionError:
+        return False, f"无法写入（文件正被 Excel 等程序占用，请先关闭）：{xlsx_path.name}"
+    if replaced:
+        print(f"   （已覆盖同名文件 {xlsx_path.name}）")
+    print(f"   PROGRAM 行 {len(program)}，烧录字节 {len(burn_addrs)}"
+          f"（{burn_addrs[0]}~{burn_addrs[-1]}），CRC32 = 0x{final_crc:08X}")
+    return True, str(xlsx_path)
+
+
 def main():
     from_source = "--from-source" in sys.argv
+    from_txt = None
+    out_path = None
+    argv = sys.argv[1:]
+    for i, a in enumerate(argv):
+        if a == "--from-txt" and i + 1 < len(argv):
+            from_txt = argv[i + 1]
+        elif a.startswith("--from-txt="):
+            from_txt = a.split("=", 1)[1]
+        elif a == "--out" and i + 1 < len(argv):
+            out_path = argv[i + 1]
+        elif a.startswith("--out="):
+            out_path = a.split("=", 1)[1]
+
+    if from_txt:
+        ok, msg = txt_to_template(from_txt, out_path)
+        print(("✅ 已生成：" if ok else "❌ ") + msg)
+        return 0 if ok else 1
+
     program, other = parse_source() if from_source else parse_from_module()
     origin = SRC.name if from_source else "chips/OCD2361/mtp_config_table.py"
     print(f"数据来源：{origin}")
     print(f"PROGRAM 行：{len(program)}，其它行：{len(other)}")
 
-    burn_addrs, crc_addrs, final_crc = compute_crc(program)
-    if not burn_addrs:
-        print("❌ 没有可烧录的数据行")
+    try:
+        wb, burn_addrs, crc_addrs, final_crc = build_workbook(program, other, origin)
+    except ValueError as e:
+        print(f"❌ {e}")
         return 1
     print(f"烧录字节：{len(burn_addrs)}（{burn_addrs[0]}~{burn_addrs[-1]}）")
     print(f"CRC 覆盖：{len(crc_addrs)} 字节（{crc_addrs[0]}~{crc_addrs[-1]}），"
           f"CRC32 = 0x{final_crc:08X}")
 
-    wb = openpyxl.Workbook()
-    build_main_sheet(wb, program, final_crc)
-    build_info_sheet(wb, program, other, burn_addrs, crc_addrs, final_crc, origin)
     try:
         wb.save(DST)
     except PermissionError:

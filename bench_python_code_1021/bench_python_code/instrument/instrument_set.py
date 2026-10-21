@@ -834,13 +834,46 @@ def smu_set_current(current, voltage_limit=None):
     """
     切换源表到电流源模式，设置源电流与电压限值（不改变输出开关）。
 
+    每条 SCPI 都单独校验；返回 False 时终端会打印具体是哪条命令被仪器拒绝。
+
     参数：
         current: float - 源电流（A），如 10mA -> 0.01
         voltage_limit: float/None - 电压限值（V），如 5
     返回：
-        bool - 配置成功返回 True
+        bool - 全部配置生效返回 True
     """
     return _smu.set_source_current(current, voltage_limit=voltage_limit)
+
+
+def smu_source_current_on(current=0.2, voltage_limit=5.0):
+    """
+    一条指令完成「电流源 → 电压档 → 200 mA → 5 V 限压 → 上电」。
+
+    只发这五步，不改其它配置。用于给某个引脚灌固定电流、同时用电压档读回电压
+    （如 TIA 灌 200 mA）。源表输出会保持开启，结束前必须调用 smu_output_off()。
+
+    参数：
+        current: float - 源电流（A），默认 0.2（200 mA）
+        voltage_limit: float - 电压限值（V），默认 5
+    返回：
+        bool - 五步全部生效返回 True
+    """
+    return _smu.source_current_on(current=current, voltage_limit=voltage_limit)
+
+
+def smu_query_state():
+    """
+    回读源表当前配置（源功能 / 电平 / 限值 / 输出状态 / 连续测量）。
+
+    返回：
+        dict - 各字段字符串值；源表未初始化返回 {}
+    """
+    return _smu.query_source_state()
+
+
+def smu_print_state(prefix="   源表配置："):
+    """打印源表当前配置回读，便于核对命令是否真的生效。"""
+    return _smu.print_source_state(prefix=prefix)
 
 
 def smu_set_voltage(voltage, current_limit=None):
@@ -1023,6 +1056,9 @@ __all__ = [
     "smu_output_state",
     "smu_set_current",
     "smu_set_voltage",
+    "smu_source_current_on",
+    "smu_query_state",
+    "smu_print_state",
     "smu_output_on",
     "smu_output_off",
     "smu_measure",
