@@ -1,0 +1,7 @@
+{
+    "protocol": "IIC",
+    "port": "COM5",
+    "chip_id": "0x52",
+    "addr": "19",
+    "index": "0"
+}

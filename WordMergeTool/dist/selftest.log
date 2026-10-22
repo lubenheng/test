@@ -1,0 +1,10 @@
+Word 文档合并工具 自检 2026-10-22 16:02:07
+[OK]   tkinter
+[OK]   python-docx
+[OK]   lxml
+[OK]   docxcompose
+[OK]   pywin32
+[OK]   pythoncom
+[OK]   tkinterdnd2
+[OK]   docx 读写与样式解析（36 个段落样式）
+结果：全部通过

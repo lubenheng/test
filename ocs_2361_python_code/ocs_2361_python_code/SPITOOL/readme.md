@@ -1,0 +1,1 @@
+C:\Users\E14\Desktop\2361工具\2361_tools\SPITOOL\例程\pythonTest_64Bit_python3.7\TESTSPI.py。源码路径

@@ -1,0 +1,39 @@
+
+============================================================
+2026-04-29 20:03:14
+Traceback (most recent call last):
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 1661, in <module>
+    app = I2CGUI(root)
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 49, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 103, in create_widgets
+    ttk.Button(btn_frame, text="批量写入比对", command=self.batch_write_readback_compare, width=14).pack(side='left', padx=4)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'I2CGUI' object has no attribute 'batch_write_readback_compare'
+
+============================================================
+2026-04-29 20:03:19
+Traceback (most recent call last):
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 1661, in <module>
+    app = I2CGUI(root)
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 49, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 103, in create_widgets
+    ttk.Button(btn_frame, text="批量写入比对", command=self.batch_write_readback_compare, width=14).pack(side='left', padx=4)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'I2CGUI' object has no attribute 'batch_write_readback_compare'
+
+============================================================
+2026-04-29 20:03:55
+Traceback (most recent call last):
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 1661, in <module>
+    app = I2CGUI(root)
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 49, in __init__
+    self.create_widgets()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\Administrator\Desktop\2361\2361_MTP\IICtool_v6\IICtool.py", line 103, in create_widgets
+    ttk.Button(btn_frame, text="批量写入比对", command=self.batch_write_readback_compare, width=14).pack(side='left', padx=4)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'I2CGUI' object has no attribute 'batch_write_readback_compare'
