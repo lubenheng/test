@@ -1,0 +1,13 @@
+#device id
+DOWN_LOADER_ID = 1
+UP_LOADER_ID = 1
+MULTIMETER_ID =1
+RES_UP_TESTER_ID =3
+RES_DOWN_TESTER_ID =3
+TESTER_R = 10000
+VDD = 5.0
+gpio_pos_list = {
+"E11": 1, 
+"D1": 2, 
+
+}

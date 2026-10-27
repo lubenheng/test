@@ -1,0 +1,5 @@
+{
+    "port": "COM10",
+    "slave_addr": "0x52",
+    "iic_speed": "100k"
+}
