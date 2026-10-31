@@ -4,7 +4,10 @@
 - 支持拖拽 / 添加多个 .docx/.doc/.docm/.rtf 文件
 - 每份文档作为一章，按标题或文件名中的章号自动排序
 - 合并后自动生成目录（Word COM 方式会立即更新页码）
-- 优先使用 Microsoft Word 合并（保留图片、表格、样式），
+- 默认只按章节拼接（docxcompose）：不修改源文件，不导入/删除样式，
+  各章原有格式与样式库原样保留
+- 支持把总文档按章节拆分为单独文档（格式保持不变）
+- 样式模板、样式清理、样式统一均为手动勾选的可选操作，
   未安装 Word 时回退到 python-docx + docxcompose
 """
 
@@ -180,7 +183,11 @@ class MergeOptions:
     style_source: Path | None = None
     prune_styles: bool = False
     unify_styles: bool = False
-    save_source: bool = True
+    save_source: bool = False
+
+    def __post_init__(self):
+        if not self.toc_levels:
+            self.toc_levels = 3
 
 
 # --------------------------------------------------------------------------
@@ -740,18 +747,115 @@ class WordUnavailableError(RuntimeError):
     """本机没有可用的 Microsoft Word。"""
 
 
-def _make_backup_dir(parent: Path) -> Path:
+def _make_backup_dir(parent: Path, prefix: str = "_样式统一备份") -> Path:
     """为源文件创建备份目录（每次合并独立，避免覆盖旧备份）。"""
     import time
 
     stamp = time.strftime("%Y%m%d_%H%M%S")
-    candidate = parent / f"_样式统一备份_{stamp}"
+    candidate = parent / f"{prefix}_{stamp}"
     counter = 1
     while candidate.exists():
-        candidate = parent / f"_样式统一备份_{stamp}_{counter}"
+        candidate = parent / f"{prefix}_{stamp}_{counter}"
         counter += 1
     candidate.mkdir(parents=True)
     return candidate
+
+
+def _paragraph_outline_level(paragraph) -> int | None:
+    """段落的大纲级别：段落直接格式优先，其次样式链；正文段落返回 None。"""
+    from docx.oxml.ns import qn
+
+    def _level(ppr):
+        if ppr is None:
+            return None
+        node = ppr.find(qn("w:outlineLvl"))
+        if node is None:
+            return None
+        try:
+            return int(node.get(qn("w:val")))
+        except (TypeError, ValueError):
+            return None
+
+    level = _level(paragraph._p.pPr)
+    if level is not None:
+        return level
+    style = paragraph.style
+    seen: set[str] = set()
+    while style is not None and style.style_id not in seen:
+        seen.add(style.style_id)
+        level = _level(style.element.find(qn("w:pPr")))
+        if level is not None:
+            return level
+        style = style.base_style
+    return None
+
+
+def _suppress_duplicate_heading_numbers_docx(document, log) -> int:
+    """标题文字里已有手写编号时，取消样式带来的自动编号。
+
+    导入带多级列表的模板后，样式会给标题加上自动编号，而标题文字本身
+    已经写了「第1章」「1.1」，两者叠加就成了「1 第1章 概述」。
+    这里按段落取消自动编号（numId=0），样式定义保持不变。
+    只处理编号来自样式、段落自身没有声明编号的标题。
+    """
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    fixed = 0
+    for paragraph in document.paragraphs:
+        if _paragraph_outline_level(paragraph) is None:
+            continue
+        text = paragraph.text.strip()
+        if not text or not _RE_MANUAL_NUMBER.match(text):
+            continue
+        if _numbering_from_ppr(paragraph._p.pPr) is not None:
+            continue  # 段落自己声明了编号，保持原样
+        if _paragraph_numbering(paragraph) is None:
+            continue  # 本来就没有自动编号
+        ppr = paragraph._p.get_or_add_pPr()
+        numpr = OxmlElement("w:numPr")
+        ilvl = OxmlElement("w:ilvl")
+        ilvl.set(qn("w:val"), "0")
+        num_id = OxmlElement("w:numId")
+        num_id.set(qn("w:val"), "0")
+        numpr.append(ilvl)
+        numpr.append(num_id)
+        _replace_ordered_child(ppr, numpr, _PPR_ORDER)
+        fixed += 1
+    if fixed:
+        log(f"标题文字已带编号：已取消 {fixed} 个标题的自动编号，避免编号重复。")
+    return fixed
+
+
+def _suppress_duplicate_heading_numbers_word(document, log) -> int:
+    """Word 版本：标题文字已带手写编号时，取消段落上的自动编号。"""
+    fixed = 0
+    try:
+        total = int(document.Paragraphs.Count)
+    except Exception:
+        return 0
+    for index in range(1, total + 1):
+        try:
+            paragraph = document.Paragraphs(index)
+            outline = int(paragraph.OutlineLevel)
+        except Exception:
+            continue
+        if not 1 <= outline <= 9:
+            continue
+        try:
+            text = str(paragraph.Range.Text or "").strip()
+            if not text or not _RE_MANUAL_NUMBER.match(text):
+                continue
+            list_format = paragraph.Range.ListFormat
+            if not str(list_format.ListString or "").strip():
+                continue
+            list_format.RemoveNumbers()
+            fixed += 1
+        except Exception:
+            continue
+    if fixed:
+        log(f"标题文字已带编号：已取消 {fixed} 个标题的自动编号，避免编号重复。")
+    return fixed
 
 
 def _process_styles_with_word(
@@ -873,6 +977,11 @@ def _process_styles_with_word(
                 if import_styles:
                     document.CopyStylesFromTemplate(str(template))
                     notes.append("已导入模板样式")
+                    suppressed = _suppress_duplicate_heading_numbers_word(
+                        document, log
+                    )
+                    if suppressed:
+                        notes.append(f"取消 {suppressed} 个标题的自动编号")
 
                 removed = 0
                 if prune_styles:
@@ -978,6 +1087,9 @@ def _process_styles_python_docx(
         if import_styles:
             names = _import_styles_python_docx(document, template, log)
             notes.append("已导入模板样式")
+            suppressed = _suppress_duplicate_heading_numbers_docx(document, log)
+            if suppressed:
+                notes.append(f"取消 {suppressed} 个标题的自动编号")
         if prune_styles:
             if import_styles and not names:
                 notes.append("模板样式读取失败，未清理样式")
@@ -995,15 +1107,15 @@ def _process_styles_python_docx(
     return results
 
 
-def _make_output_dir(parent: Path) -> Path:
+def _make_output_dir(parent: Path, prefix: str = "样式处理结果") -> Path:
     """为“不保存源文件”的处理结果创建输出目录。"""
     import time
 
     stamp = time.strftime("%Y%m%d_%H%M%S")
-    candidate = parent / f"样式处理结果_{stamp}"
+    candidate = parent / f"{prefix}_{stamp}"
     counter = 1
     while candidate.exists():
-        candidate = parent / f"样式处理结果_{stamp}_{counter}"
+        candidate = parent / f"{prefix}_{stamp}_{counter}"
         counter += 1
     candidate.mkdir(parents=True)
     return candidate
@@ -1172,8 +1284,26 @@ def _start_body_on_new_page(document) -> None:
         document.Paragraphs(index).Range.Delete()
 
 
+def _word_last_paragraph_has_content(document) -> bool:
+    """Word 文档最后一段是否还有内容（文字、图片、表格等）。"""
+    try:
+        count = int(document.Paragraphs.Count)
+        if count < 1:
+            return False
+        paragraph = document.Paragraphs(count)
+        if str(paragraph.Range.Text or "").strip("\r\n\a\x07\x0c \t　"):
+            return True
+        return bool(int(paragraph.Range.InlineShapes.Count))
+    except Exception:
+        return False
+
+
 def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log):
-    """使用 Microsoft Word 的 InsertFile 合并，最大程度保留原始格式。"""
+    """使用 Microsoft Word 的 InsertFile 合并，最大程度保留原始格式。
+
+    与默认引擎一致：第一个文档直接作为主文档打开，保留它的样式库、多级列表
+    编号与页面设置，其余文档依次插入到文末。
+    """
     import pythoncom
     import win32com.client
 
@@ -1181,6 +1311,10 @@ def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log
     wd_page_break = 7
     wd_align_center = 1
     wd_format_document_default = 16
+
+    if not files:
+        raise ValueError("没有可合并的文档。")
+    files = [Path(path).resolve() for path in files]
 
     pythoncom.CoInitialize()
     word = None
@@ -1198,16 +1332,16 @@ def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log
         except Exception:
             pass
 
-        document = word.Documents.Add()
-        # 删除新文档自带的空段落，避免正文前多出空行
-        try:
-            if document.Paragraphs.Count <= 1 and not document.Content.Text.strip():
-                document.Content.Delete()
-        except Exception:
-            pass
+        document = word.Documents.Open(
+            FileName=str(files[0]),
+            ConfirmConversions=False,
+            ReadOnly=False,
+            AddToRecentFiles=False,
+            Visible=False,
+        )
+        log(f"以第一个文档为基准：{files[0].name}（保留其样式与页面设置）")
 
         toc = None
-        front_inserted = False
         if options.make_toc:
             title = (options.toc_title or "目录").strip() or "目录"
             start = document.Range(0, 0)
@@ -1224,7 +1358,6 @@ def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log
                 title_range.ParagraphFormat.Alignment = wd_align_center
             except Exception:
                 pass
-            front_inserted = True
 
             try:
                 anchor = title_paragraph.Range.End
@@ -1234,24 +1367,27 @@ def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log
                     1,
                     max(1, min(options.toc_levels, 5)),
                 )
-                # 目录之后分页，正文从新的一页开始
-                break_range = document.Range(toc.Range.End, toc.Range.End)
-                break_range.InsertBreak(wd_page_break)
+                # 目录与正文之间的分页交给 _start_body_on_new_page 处理：
+                # 在这里插入分页符会把正文第一段（标题）拆成两个空标题段落，
+                # 多出一个“第1章”的空标题，后面的章节编号也会整体后移。
             except Exception as exc:
                 toc = None
                 log(f"提示：自动生成目录失败（{exc}），文档已正常合并。")
 
         for index, path in enumerate(files, start=1):
-            path = Path(path).resolve()
-            if index > 1 and options.page_break:
-                brk = document.Content
-                brk.Collapse(wd_collapse_end)
-                brk.InsertBreak(wd_page_break)
-
-            if index == 1 and not front_inserted:
-                target = document.Range(0, 0)
-            else:
-                target = document.Content
+            if index == 1:
+                # 第一个文档本身就是主文档，无需再插入
+                log(f"[{index}/{len(files)}] 已作为基准文档：{path.name}")
+                continue
+            target = document.Content
+            target.Collapse(wd_collapse_end)
+            if options.page_break:
+                target.InsertBreak(wd_page_break)
+                target.Collapse(wd_collapse_end)
+            elif _word_last_paragraph_has_content(document):
+                # 不分页时，末尾段落还有内容就补一个段落标记：
+                # 否则插入的标题会被并进上一段，图片、样式一起被带乱
+                target.InsertParagraphAfter()
                 target.Collapse(wd_collapse_end)
 
             target.InsertFile(
@@ -1262,10 +1398,15 @@ def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log
             )
             log(f"[{index}/{len(files)}] 已插入：{path.name}")
 
-        # 导入样式模板（必须在更新目录/页码之前完成，让目录使用新样式）
+        # 仅按章节合并时不导入模板样式；只有显式勾选样式清理才处理样式
         style_names: set[str] | None = None
-        if options.style_source:
+        if options.style_source and options.prune_styles:
             style_names = _import_styles_with_word(word, document, options.style_source, log)
+        elif options.style_source:
+            log(
+                "已选择样式模板，但未勾选样式相关选项：本次合并不导入模板样式，"
+                "各章节原有样式保持不变。"
+            )
 
         # 合并后页码保持连续，避免各文件页码各自从 1 开始
         try:
@@ -1286,8 +1427,9 @@ def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log
         toc_inserted = toc is not None
         if toc is not None:
             try:
-                toc.Update()
+                # 先让正文另起一页，再更新目录，页码才是调整后的
                 _start_body_on_new_page(document)
+                toc.Update()
                 toc_text = toc.Range.Text or ""
                 if "未找到" in toc_text or "No table of contents" in toc_text:
                     log("提示：未在正文中找到 Heading 1/2/3 标题样式，目录可能为空。")
@@ -1328,8 +1470,39 @@ def _merge_with_word(files: list[Path], output: Path, options: MergeOptions, log
             log(f"重复样式清理失败：{exc}")
 
 
-def _add_toc_field(doc, title: str, levels: int = 3) -> None:
-    """python-docx 回退方案：插入 TOC 域（打开文档时由 Word 更新）。"""
+def _set_page_break_before(element) -> bool:
+    """让正文从新的一页开始：给段落加“段前分页”，而不是插入一个空的分页段落。
+
+    空分页段落会在新页顶部留下一行空白，与原文档版式不一致。
+    第一个元素不是段落（如表格）时，退回为在它前面插入分页段落。
+    """
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    if element is None or element.tag == qn("w:sectPr"):
+        return False
+    if element.tag != qn("w:p"):
+        break_paragraph = _page_break_element()
+        element.addprevious(break_paragraph)
+        return True
+    ppr = element.find(qn("w:pPr"))
+    if ppr is None:
+        ppr = OxmlElement("w:pPr")
+        element.insert(0, ppr)
+    for existing in ppr.findall(qn("w:pageBreakBefore")):
+        ppr.remove(existing)
+    node = OxmlElement("w:pageBreakBefore")
+    _replace_ordered_child(ppr, node, _PPR_ORDER)
+    return True
+
+
+def _add_toc_field(doc, title: str, levels: int = 3, at_start: bool = False) -> bool:
+    """python-docx 回退方案：插入 TOC 域（打开文档时由 Word 更新）。
+
+    返回 True 表示目录之后还有正文要追加，调用方需让第一段正文另起一页。
+    at_start=True 时把目录放到正文最前面，并直接让原来的第一段正文另起一页：
+    主文档不是空白文档时，add_paragraph 会把目录追加到已有正文之后。
+    """
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
 
@@ -1339,6 +1512,9 @@ def _add_toc_field(doc, title: str, levels: int = 3) -> None:
     except Exception:
         for run in title_paragraph.runs:
             run.bold = True
+    # 目录标题本身不进入目录：9 表示“正文级别”。模板的标题样式常带大纲级别，
+    # 不处理的话目录里会多出一行指向目录自己。
+    _set_ppr_outline(title_paragraph._p.get_or_add_pPr(), 9)
 
     paragraph = doc.add_paragraph()
     run = paragraph.add_run()
@@ -1358,12 +1534,22 @@ def _add_toc_field(doc, title: str, levels: int = 3) -> None:
     for element in (begin, instr, separate, placeholder, end):
         run._r.append(element)
 
-    doc.add_page_break()
+    pending_break = True
+    if at_start:
+        body = doc.element.body
+        for offset, element in enumerate((title_paragraph._p, paragraph._p)):
+            body.remove(element)
+            body.insert(offset, element)
+        children = list(body)
+        if len(children) > 2:
+            _set_page_break_before(children[2])
+        pending_break = False
 
     settings = doc.settings.element
     update = OxmlElement("w:updateFields")
     update.set(qn("w:val"), "true")
     settings.append(update)
+    return pending_break
 
 
 def _strip_page_number_restart(doc) -> None:
@@ -1375,6 +1561,15 @@ def _strip_page_number_restart(doc) -> None:
             pg_num.attrib.pop(qn("w:start"), None)
 
 
+def _append_document(composer, master, document, page_break: bool) -> list:
+    """把一份文档追加到主文档末尾；page_break 时让它的第一段另起一页。"""
+    position = composer.append_index()
+    added = _composer_insert(composer, master, position, document)
+    if page_break and added:
+        _set_page_break_before(added[0])
+    return added
+
+
 def _merge_with_docxcompose(
     files: list[Path],
     output: Path,
@@ -1384,6 +1579,8 @@ def _merge_with_docxcompose(
 ):
     """不依赖 Word 的 docxcompose 合并，要求源文件为 .docx。
 
+    与「合并到文档」一致：第一个文档作为主文档，后续文档依次插入，
+    主文档的样式库、多级列表编号、页面设置不会被改动。
     base_doc 为事先统一好样式的基准文档时，合并阶段不再改动任何样式。
     """
     from docx import Document
@@ -1396,36 +1593,71 @@ def _merge_with_docxcompose(
             + "、".join(non_docx)
         )
 
-    master = base_doc if base_doc is not None else Document()
-    if options.make_toc:
-        _add_toc_field(master, options.toc_title or "目录", options.toc_levels)
+    if base_doc is not None:
+        master = base_doc
+        remaining = list(files)
+        break_before_each = False
+    elif files:
+        # 与“合并到文档”一致：用第一个文档作为主文档，它的样式库、编号定义、
+        # 页面设置原样保留，后续文档只是插入进来，不会再被空白文档的默认样式覆盖。
+        master = Document(str(files[0]))
+        remaining = list(files[1:])
+        break_before_each = True
+        log(f"以第一个文档为基准：{files[0].name}（保留其样式与页面设置）")
+    else:
+        master = Document()
+        remaining = []
+        break_before_each = False
 
-    composer = Composer(master)
-    # docxcompose 会为每份文档的编号列表单独建定义并沿用原起始编号，
-    # 因此各文档原有的多级列表序号保持不变（不会被前后章节串号）。
-    for index, path in enumerate(files, start=1):
-        if index > 1 and options.page_break:
-            master.add_page_break()
-        composer.append(Document(str(path)))
-        log(f"[{index}/{len(files)}] 已合并：{path.name}")
+    toc_pending_break = False
+    if options.make_toc:
+        # 目录与正文之间必须分页；at_start 时直接让主文档原来的第一段另起一页，
+        # 否则等到追加第一份文档时给它分页。
+        toc_pending_break = _add_toc_field(
+            master,
+            options.toc_title or "目录",
+            options.toc_levels,
+            at_start=break_before_each,
+        )
+
+    # 纯章节合并时 preserve_styles=True：各章样式定义原样带进结果文档，
+    # 同名但定义不同的样式只会另存一份副本，不会被主文档或前一章的样式覆盖。
+    # base_doc 不为空表示样式已在合并前显式统一过，此时沿用原行为。
+    composer = Composer(master, preserve_styles=base_doc is None)
+    if base_doc is None:
+        log("仅按章节拼接：各章原有格式与样式库保持不变，源文件只读。")
+    # 与主文档样式相同的章节直接沿用主文档的样式与编号列表，标题编号由此连续；
+    # 样式不同的章节按原样另带一份副本，并沿用该章节自己的编号起始值。
+    for index, path in enumerate(remaining, start=1):
+        need_break = options.page_break and (break_before_each or index > 1)
+        if index == 1 and toc_pending_break:
+            need_break = True
+        _append_document(composer, master, Document(str(path)), need_break)
+        log(f"[{index}/{len(remaining)}] 已合并：{path.name}")
 
     # base_doc 表示样式已在合并前统一过，这里不再导入/清理样式
     if base_doc is None:
-        if options.style_source:
-            if options.style_source.suffix.lower() == ".doc":
-                raise RuntimeError(
-                    "无 Word 的回退方式不支持 .doc 样式模板，请先把模板另存为 .dotm 或 .dotx。"
-                )
-            if not options.style_source.is_file():
-                raise RuntimeError(f"找不到样式模板文件：{options.style_source}")
-        style_names = None
-        if options.style_source:
-            style_names = _import_styles_python_docx(master, options.style_source, log)
         if options.prune_styles:
+            style_names = None
+            if options.style_source:
+                if options.style_source.suffix.lower() == ".doc":
+                    raise RuntimeError(
+                        "无 Word 的回退方式不支持 .doc 样式模板，请先把模板另存为 .dotm 或 .dotx。"
+                    )
+                if not options.style_source.is_file():
+                    raise RuntimeError(f"找不到样式模板文件：{options.style_source}")
+                style_names = _import_styles_python_docx(
+                    master, options.style_source, log
+                )
             if options.style_source and not style_names:
                 log("未能从模板中读取样式，已跳过样式清理，以免误删全部样式。")
             else:
                 _prune_python_docx_styles(master, style_names, log)
+        elif options.style_source:
+            log(
+                "已选择样式模板，但未勾选样式相关选项：本次合并不导入模板样式，"
+                "各章节原有样式保持不变。"
+            )
 
     _strip_page_number_restart(master)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -1613,7 +1845,31 @@ def _chapter_spans(document, any_heading: bool = False) -> list[ChapterSpan]:
 
 
 def _document_spans(document) -> list[ChapterSpan]:
-    return _chapter_spans(document) or _chapter_spans(document, any_heading=True)
+    spans = _chapter_spans(document) or _chapter_spans(document, any_heading=True)
+    return _fill_span_numbers(document, spans)
+
+
+def _fill_span_numbers(document, spans: list[ChapterSpan]) -> list[ChapterSpan]:
+    """标题文字里没有章号的章节，用标题上的多级列表编号补出章号。"""
+    if not spans or all(span.number is not None for span in spans):
+        return spans
+    from docx.oxml.ns import qn
+
+    snapshot = _numbering_snapshot(document)
+    if not snapshot:
+        return spans
+    children = list(document.element.body)
+    filled: list[ChapterSpan] = []
+    for span in spans:
+        number = span.number
+        if number is None and 0 <= span.start < len(children):
+            child = children[span.start]
+            if child.tag == qn("w:p"):
+                info = snapshot.get(child)
+                if info is not None:
+                    number = (info[2],)
+        filled.append(ChapterSpan(number, span.heading, span.start, span.end))
+    return filled
 
 
 def _page_break_element():
@@ -1646,7 +1902,11 @@ def _has_toc_field(document) -> bool:
 
 
 def _strip_empty_edge_paragraphs(document) -> None:
-    """去掉章节文档首尾的空段落，避免插入后多出空行。"""
+    """去掉章节文档首尾的空段落，避免插入后多出空行。
+
+    仅用于显式要求整理版式的场景；默认的章节合并要求原样保留章节内容，
+    不会再调用此函数。
+    """
     from docx.oxml.ns import qn
     from docx.text.paragraph import Paragraph
 
@@ -1678,6 +1938,189 @@ def _strip_empty_edge_paragraphs(document) -> None:
         body.remove(child)
 
 
+# --------------------------------------------------------------------------
+# 合并 / 导入单章节：先选章节，再选总文档，同章节可替换
+# --------------------------------------------------------------------------
+
+_RE_SPLIT_SUFFIX = re.compile(r"[_\-]?\d{8}(?:[_\-]\d+)?$")
+
+
+def _first_heading_text(document) -> str | None:
+    """读取文档对象中的第一个标题（优先一级标题）。"""
+    fallback: str | None = None
+    for index, paragraph in enumerate(document.paragraphs):
+        if index > 500:
+            break
+        text = paragraph.text.strip()
+        if not text:
+            continue
+        level = _heading_level(paragraph)
+        if level is None:
+            continue
+        if level == 1:
+            return text
+        if fallback is None:
+            fallback = text
+    return fallback
+
+
+def _chapter_title_from_filename(path: Path) -> str:
+    """从文件名中取章节标题（去掉章号、拆分时追加的日期后缀）。"""
+    stem = _RE_SPLIT_SUFFIX.sub("", path.stem)
+    return _chapter_title_from_heading(stem) or path.stem
+
+
+def _normalized_title(text: str) -> str:
+    """比较章节标题时统一格式：去掉编号、空白和下划线。"""
+    title = _chapter_title_from_heading(text or "")
+    return re.sub(r"[\s_]+", "", title).casefold()
+
+
+def _match_chapter_span(spans: list, number, title: str):
+    """在总文档的章节区间中找同章节：先按章号，再按标题文字。"""
+    if number is not None:
+        for span in spans:
+            if span.number == number:
+                return span
+    key = _normalized_title(title)
+    if key:
+        for span in spans:
+            if _normalized_title(span.heading) == key:
+                return span
+    return None
+
+
+def _heading_numbering_map(document) -> dict[int, tuple[str, int]]:
+    """总文档中各级标题实际使用的编号（numId, ilvl）。"""
+    result: dict[int, tuple[str, int]] = {}
+    for paragraph in _body_paragraphs(document):
+        level = _heading_level(paragraph)
+        if level is None or level in result:
+            continue
+        info = _paragraph_numbering(paragraph)
+        if info is not None:
+            result[level] = info
+    return result
+
+
+def _chapter_heading_numbering(document, span) -> dict[int, tuple[str, int]]:
+    """某一章正文中各级标题实际使用的编号（numId, ilvl）。"""
+    from docx.oxml.ns import qn
+    from docx.text.paragraph import Paragraph
+
+    children = list(document.element.body)
+    result: dict[int, tuple[str, int]] = {}
+    for position in range(span.start, min(span.end, len(children))):
+        child = children[position]
+        if child.tag != qn("w:p"):
+            continue
+        paragraph = Paragraph(child, document._body)
+        level = _heading_level(paragraph)
+        if level is None or level in result:
+            continue
+        info = _paragraph_numbering(paragraph)
+        if info is not None:
+            result[level] = info
+    return result
+
+
+def _merge_heading_numbers(primary: dict, fallback: dict) -> dict:
+    """以 primary 为主；缺的级别沿用同一列表的上级编号定义。"""
+    base = primary.get(1) or fallback.get(1)
+    if base is None:
+        return dict(fallback)
+    result = dict(primary)
+    for level in range(1, 10):
+        if level not in result:
+            result[level] = (base[0], level - 1)
+    return result
+
+
+def _adopt_heading_numbering(document, elements: list, numbering_map: dict) -> None:
+    """让导入章节的标题沿用总文档的编号列表。
+
+    否则章节自带的编号会把列表拆成两段：被替换章节后面的章节
+    会因为总文档的列表少了一个而整体前移（附录从第 3 章变成第 2 章）。
+    """
+    if not numbering_map:
+        return
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.text.paragraph import Paragraph
+
+    base = numbering_map.get(1)
+    if base is None:
+        return
+    for element in elements:
+        if element.tag != qn("w:p"):
+            continue
+        level = _heading_level(Paragraph(element, document._body))
+        if level is None:
+            continue
+        num_id, ilvl = numbering_map.get(level, (base[0], level - 1))
+        ppr = element.get_or_add_pPr()
+        numpr = OxmlElement("w:numPr")
+        ilvl_node = OxmlElement("w:ilvl")
+        ilvl_node.set(qn("w:val"), str(ilvl))
+        num_id_node = OxmlElement("w:numId")
+        num_id_node.set(qn("w:val"), str(num_id))
+        numpr.append(ilvl_node)
+        numpr.append(num_id_node)
+        _replace_ordered_child(ppr, numpr, _PPR_ORDER)
+
+
+def _composer_insert(composer, document, position: int, source) -> list:
+    """在 position 处插入章节，返回插入正文中的元素。"""
+    body = document.element.body
+    before = len(body)
+    composer.insert(position, source)
+    children = list(body)
+    added = len(children) - before
+    if added <= 0:
+        return []
+    return children[position : position + added]
+
+
+def _chapter_number_for_source(original: Path, converted: Path) -> tuple[int, ...] | None:
+    """章节文档的章号：标题优先，标题里没有章号时用原文件名。"""
+    number = parse_chapter_number(_first_heading(converted))
+    if number is None:
+        number = parse_chapter_number(original.stem)
+    return number
+
+
+def analyze_chapter_import(chapter: Path, target: Path, log) -> dict:
+    """分析单章节导入：读章节标题/章号，并在总文档中查找同章节。"""
+    import tempfile
+
+    from docx import Document
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="wm_import_"))
+    try:
+        chapter_docx, target_docx = _convert_to_docx([chapter, target], temp_dir, log)
+        chapter_document = Document(str(chapter_docx))
+        heading = _first_heading_text(chapter_document) or ""
+        number = parse_chapter_number(heading) or parse_chapter_number(chapter.stem)
+        title = _chapter_title_from_heading(heading) if heading else ""
+        if not title:
+            title = _chapter_title_from_filename(chapter)
+        spans = _document_spans(Document(str(target_docx)))
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    match_index: int | None = None
+    match = _match_chapter_span(spans, number, title)
+    if match is not None:
+        match_index = spans.index(match)
+    return {
+        "heading": heading or title,
+        "number": number,
+        "title": title,
+        "spans": [{"heading": span.heading, "number": span.number} for span in spans],
+        "match_index": match_index,
+    }
+
+
 def merge_chapters_into_document(
     target: Path,
     chapters: list[Path],
@@ -1706,28 +2149,34 @@ def merge_chapters_into_document(
         if not _document_spans(document):
             log("提示：目标文档中未找到章节标题，选中的章节将按章号追加到文末。")
         has_toc = _has_toc_field(document)
-        composer = Composer(document)
+        # 只插入章节内容：章节自带的样式原样带进来，与目标文档同名但定义
+        # 不同的样式另存副本，不改动目标文档已有的样式定义和章节内容。
+        composer = Composer(document, preserve_styles=True)
+        log("仅插入章节内容：目标文档样式库与各章格式保持不变，源文件只读。")
+
+        heading_numbers = _heading_numbering_map(document)
 
         replaced = 0
         inserted = 0
         total = len(chapter_docx)
         for index, path in enumerate(chapter_docx, start=1):
             source = Document(str(path))
-            _strip_empty_edge_paragraphs(source)
-            number = detect_document(path).number
+            number = _chapter_number_for_source(chapters[index - 1], path)
 
             if mode == "replace":
-                span = None
-                if number is not None:
-                    span = next(
-                        (s for s in _document_spans(document) if s.number == number),
-                        None,
-                    )
+                span = _match_chapter_span(
+                    _document_spans(document), number, _first_heading(path) or ""
+                )
                 if span is not None:
+                    # 记下被替换章节原本使用的编号，替换后让新章节接上同一个列表
+                    numbers = _merge_heading_numbers(
+                        _chapter_heading_numbering(document, span), heading_numbers
+                    )
                     body = document.element.body
                     for child in list(body)[span.start : span.end]:
                         body.remove(child)
-                    composer.insert(span.start, source)
+                    added = _composer_insert(composer, document, span.start, source)
+                    _adopt_heading_numbering(document, added, numbers)
                     replaced += 1
                     log(
                         f"[{index}/{total}] 已替换：{path.name} -> {span.heading}"
@@ -1737,8 +2186,10 @@ def merge_chapters_into_document(
                     f"目标文档中没有 {_chapter_label(number)}，改为按章号插入：{path.name}"
                 )
 
+            spans_now = _document_spans(document)
             position: int | None = None
-            for span in _document_spans(document):
+            reference_span = spans_now[-1] if spans_now else None
+            for span in spans_now:
                 if (
                     span.number is not None
                     and number is not None
@@ -1746,6 +2197,7 @@ def merge_chapters_into_document(
                 ):
                     position = span.start
                     break
+                reference_span = span
             body = document.element.body
             if position is None:
                 from docx.oxml.ns import qn
@@ -1755,7 +2207,16 @@ def merge_chapters_into_document(
             if options.page_break and position > 0:
                 body.insert(position, _page_break_element())
                 position += 1
-            composer.insert(position, source)
+            numbers = (
+                _merge_heading_numbers(
+                    _chapter_heading_numbering(document, reference_span),
+                    heading_numbers,
+                )
+                if reference_span is not None
+                else heading_numbers
+            )
+            added = _composer_insert(composer, document, position, source)
+            _adopt_heading_numbering(document, added, numbers)
             inserted += 1
             log(f"[{index}/{total}] 已合并：{path.name}")
 
@@ -1770,6 +2231,853 @@ def merge_chapters_into_document(
         shutil.rmtree(temp_dir, ignore_errors=True)
 
     return f"合并到文档（{mode == 'replace' and '替换' or '合并'}）"
+
+
+# --------------------------------------------------------------------------
+# 把总文档按章节拆分为单独文档
+# --------------------------------------------------------------------------
+
+_RE_FILENAME_BAD = re.compile(r'[\\/:*?"<>|\x00-\x1f]+')
+_RE_TITLE_PREFIX = re.compile(
+    r"^\s*(?:"
+    r"第\s*[零〇一二三四五六七八九十百两\d]+(?:[.．]\d+)*\s*[章篇部节]"
+    r"|(?:chapter|chap\.?|ch\.?)\s*\d+"
+    r"|\d+(?:[.．]\d+)*(?=[\s、,，.．:：_\-—])"
+    r")\s*[\s、,，.．:：_\-—]*",
+    re.I,
+)
+
+
+def _safe_filename_part(text: str, fallback: str, limit: int = 100) -> str:
+    """去掉文件名中不允许的字符，并限制长度。"""
+    cleaned = _RE_FILENAME_BAD.sub("_", text or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip().strip(".")
+    cleaned = re.sub(r"\s*_\s*", "_", cleaned).strip("_")
+    cleaned = re.sub(r"_+", "_", cleaned)
+    return cleaned[:limit].rstrip(" ._") or fallback
+
+
+def _chapter_title_from_heading(heading: str) -> str:
+    """从标题中取章节标题，去掉开头的「第N章 / Chapter N / 1.2」等编号。"""
+    text = (heading or "").strip()
+    stripped = _RE_TITLE_PREFIX.sub("", text, count=1).strip()
+    return stripped or text
+
+
+def _chapter_number_text(number: tuple[int, ...] | None, index: int) -> str:
+    """章号文本；识别不到章号时用章节顺序号。"""
+    if number:
+        return ".".join(str(part) for part in number)
+    return str(index)
+
+
+def _numbering_level_info(numbering_root) -> dict[str, dict[int, dict]]:
+    """解析 numbering.xml：numId -> {ilvl: {start, restart}}。"""
+    from docx.oxml.ns import qn
+
+    def _int(node, default=None):
+        if node is None:
+            return default
+        try:
+            return int(node.get(qn("w:val")))
+        except (TypeError, ValueError):
+            return default
+
+    def _ilvl_of(element, default=0):
+        try:
+            return int(element.get(qn("w:ilvl")))
+        except (TypeError, ValueError):
+            return default
+
+    abstracts: dict[str, dict[int, dict]] = {}
+    for abstract in numbering_root.findall(qn("w:abstractNum")):
+        abstract_id = abstract.get(qn("w:abstractNumId"))
+        levels: dict[int, dict] = {}
+        for lvl in abstract.findall(qn("w:lvl")):
+            ilvl = _ilvl_of(lvl)
+            levels[ilvl] = {
+                "start": _int(lvl.find(qn("w:start")), 1),
+                # None 表示未声明（上一级递增时重置）；0 表示不重置
+                "restart": _int(lvl.find(qn("w:lvlRestart"))),
+            }
+        abstracts[abstract_id] = levels
+
+    result: dict[str, dict[int, dict]] = {}
+    for num in numbering_root.findall(qn("w:num")):
+        num_id = num.get(qn("w:numId"))
+        ref = num.find(qn("w:abstractNumId"))
+        if num_id is None or ref is None:
+            continue
+        levels = {
+            ilvl: dict(info)
+            for ilvl, info in abstracts.get(ref.get(qn("w:val")), {}).items()
+        }
+        for override in num.findall(qn("w:lvlOverride")):
+            ilvl = _ilvl_of(override)
+            start = _int(override.find(qn("w:startOverride")))
+            if start is not None and ilvl in levels:
+                levels[ilvl]["start"] = start
+        result[num_id] = levels
+    return result
+
+
+def _numbering_from_ppr(ppr):
+    """从 w:pPr 中读取 (numId, ilvl)；未声明时返回 None。"""
+    from docx.oxml.ns import qn
+
+    if ppr is None:
+        return None
+    numpr = ppr.find(qn("w:numPr"))
+    if numpr is None:
+        return None
+    num_id_node = numpr.find(qn("w:numId"))
+    num_id = num_id_node.get(qn("w:val")) if num_id_node is not None else None
+    ilvl_node = numpr.find(qn("w:ilvl"))
+    ilvl = None
+    if ilvl_node is not None:
+        try:
+            ilvl = int(ilvl_node.get(qn("w:val")))
+        except (TypeError, ValueError):
+            ilvl = None
+    return num_id, ilvl
+
+
+def _paragraph_numbering(paragraph) -> tuple[str, int] | None:
+    """段落实际使用的多级列表编号（numId, ilvl），编号来自段落或样式链。"""
+    from docx.oxml.ns import qn
+
+    num_id: str | None = None
+    ilvl: int | None = None
+    direct = _numbering_from_ppr(paragraph._p.pPr)
+    if direct is not None:
+        direct_id, direct_level = direct
+        if direct_id is not None:
+            if direct_id == "0":
+                return None  # numId=0 表示取消编号
+            num_id = direct_id
+        ilvl = direct_level
+
+    style = paragraph.style
+    seen: set[str] = set()
+    while style is not None and style.style_id not in seen:
+        seen.add(style.style_id)
+        info = _numbering_from_ppr(style.element.find(qn("w:pPr")))
+        if info is not None:
+            style_id_value, style_level = info
+            if num_id is None and style_id_value is not None:
+                if style_id_value == "0":
+                    return None
+                num_id = style_id_value
+            if ilvl is None:
+                ilvl = style_level
+        style = style.base_style
+
+    if not num_id:
+        return None
+    return num_id, ilvl or 0
+
+
+def _body_paragraphs(document):
+    """按文档顺序遍历正文中的段落（含表格内的段落）。"""
+    from docx.oxml.ns import qn
+    from docx.text.paragraph import Paragraph
+
+    for child in list(document.element.body):
+        if child.tag == qn("w:p"):
+            yield Paragraph(child, document._body)
+        elif child.tag == qn("w:tbl"):
+            for element in child.iter(qn("w:p")):
+                yield Paragraph(element, document._body)
+
+
+def _numbering_snapshot(document) -> dict:
+    """模拟整篇文档的多级列表编号，返回 {段落元素: (numId, ilvl, 编号值)}。
+
+    拆分会删掉前面的章节，Word 会把剩下的标题重新从 1 开始编号；
+    这里先按 Word 的规则算出每个段落原本的编号值，拆分后再写回起始值。
+    """
+    from docx.oxml.ns import qn
+
+    try:
+        numbering_root = document.part.numbering_part.element
+    except (Exception, NotImplementedError):
+        return {}
+    levels = _numbering_level_info(numbering_root)
+    if not levels:
+        return {}
+
+    # 共用同一 abstractNum 的多个列表在 Word 中算同一个列表，计数要合在一起
+    abstract_of: dict[str, str] = {}
+    for num in numbering_root.findall(qn("w:num")):
+        ref = num.find(qn("w:abstractNumId"))
+        if ref is not None:
+            abstract_of[num.get(qn("w:numId"))] = ref.get(qn("w:val"))
+
+    counters: dict[str, dict[int, int]] = {}
+    snapshot: dict = {}
+    for paragraph in _body_paragraphs(document):
+        info = _paragraph_numbering(paragraph)
+        if info is None:
+            continue
+        num_id, ilvl = info
+        definition = levels.get(num_id)
+        if definition is None:
+            continue
+        state = counters.setdefault(abstract_of.get(num_id, num_id), {})
+        if ilvl in state:
+            state[ilvl] += 1
+        else:
+            state[ilvl] = int(definition.get(ilvl, {}).get("start", 1))
+        for deeper in [level for level in state if level > ilvl]:
+            restart = definition.get(deeper, {}).get("restart")
+            # None：默认随上一级递增而重置；0：不重置；N：第 N 级递增时重置
+            if restart is None or restart == ilvl + 1:
+                del state[deeper]
+        snapshot[paragraph._p] = (num_id, ilvl, state[ilvl])
+    return snapshot
+
+
+def _chapter_numbering_starts(snapshot: dict, children: list, span) -> dict[str, dict[int, int]]:
+    """取本章各编号级别第一次出现时的编号值，用作拆分文档的起始编号。"""
+    from docx.oxml.ns import qn
+
+    starts: dict[str, dict[int, int]] = {}
+    for position in range(span.start, min(span.end, len(children))):
+        child = children[position]
+        if child.tag != qn("w:p"):
+            continue
+        info = snapshot.get(child)
+        if info is None:
+            continue
+        num_id, ilvl, value = info
+        starts.setdefault(num_id, {}).setdefault(ilvl, value)
+    return starts
+
+
+def _numbering_levels_of(abstract) -> dict[int, object]:
+    """abstractNum 中 ilvl -> w:lvl 元素。"""
+    from docx.oxml.ns import qn
+
+    levels: dict[int, object] = {}
+    for lvl in abstract.findall(qn("w:lvl")):
+        try:
+            levels[int(lvl.get(qn("w:ilvl")))] = lvl
+        except (TypeError, ValueError):
+            continue
+    return levels
+
+
+def _set_level_start(lvl, value: str) -> None:
+    """设置 w:lvl 的起始编号（w:start 必须是第一个子元素）。"""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    start = lvl.find(qn("w:start"))
+    if start is None:
+        start = OxmlElement("w:start")
+        lvl.insert(0, start)
+    start.set(qn("w:val"), value)
+
+
+def _apply_numbering_starts(document, starts: dict[str, dict[int, int]]) -> None:
+    """把起始编号写回拆分文档的 numbering.xml。
+
+    Word 中只写 w:startOverride 时，第 2 级及更深的级别在上一级递增后
+    仍从 1 开始，因此这里改的是级别的起始编号（w:start）：
+    共享同一 abstractNum 的多个列表会各自复制一份编号定义，互不影响。
+    """
+    if not starts:
+        return
+    from copy import deepcopy
+    from random import randrange
+
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    try:
+        numbering_root = document.part.numbering_part.element
+    except (Exception, NotImplementedError):
+        return
+
+    nums = {
+        num.get(qn("w:numId")): num for num in numbering_root.findall(qn("w:num"))
+    }
+    abstracts = {
+        abstract.get(qn("w:abstractNumId")): abstract
+        for abstract in numbering_root.findall(qn("w:abstractNum"))
+    }
+    usage: dict[str, int] = {}
+    for num in nums.values():
+        ref = num.find(qn("w:abstractNumId"))
+        if ref is not None:
+            usage[ref.get(qn("w:val"))] = usage.get(ref.get(qn("w:val")), 0) + 1
+
+    numeric_ids = [int(key) for key in abstracts if str(key).isdigit()]
+    next_id = max(numeric_ids, default=0) + 1
+
+    for num_id, levels in starts.items():
+        num = nums.get(num_id)
+        if num is None:
+            continue
+        ref = num.find(qn("w:abstractNumId"))
+        if ref is None:
+            continue
+        abstract = abstracts.get(ref.get(qn("w:val")))
+        if abstract is None:
+            continue
+
+        if usage.get(ref.get(qn("w:val")), 0) > 1:
+            # 同一编号定义被多个列表共用：复制一份，避免改动其他列表的编号
+            abstract = deepcopy(abstract)
+            abstract.set(qn("w:abstractNumId"), str(next_id))
+            nsid = abstract.find(qn("w:nsid"))
+            if nsid is not None:
+                nsid.set(qn("w:val"), f"{randrange(0x10000000, 0xFFFFFFFF):08X}")
+            last_abstract = numbering_root.findall(qn("w:abstractNum"))[-1]
+            last_abstract.addnext(abstract)
+            abstracts[str(next_id)] = abstract
+            ref.set(qn("w:val"), str(next_id))
+            next_id += 1
+
+        definitions = _numbering_levels_of(abstract)
+        for ilvl, value in levels.items():
+            lvl = definitions.get(ilvl)
+            if lvl is None:
+                continue
+            _set_level_start(lvl, str(value))
+            # 该列表原有的级别覆盖也会盖住新的起始值，一并同步
+            for override in num.findall(qn("w:lvlOverride")):
+                if override.get(qn("w:ilvl")) != str(ilvl):
+                    continue
+                start_override = override.find(qn("w:startOverride"))
+                if start_override is not None:
+                    start_override.set(qn("w:val"), str(value))
+                inner = override.find(qn("w:lvl"))
+                if inner is not None:
+                    _set_level_start(inner, str(value))
+
+
+def _strip_trailing_page_breaks(document) -> None:
+    """去掉章节末尾仅含分页符（或空白）的段落，避免拆分后多出一页空白。"""
+    from docx.oxml.ns import qn
+    from docx.text.paragraph import Paragraph
+
+    body = document.element.body
+    harmless = {
+        qn("w:p"),
+        qn("w:r"),
+        qn("w:pPr"),
+        qn("w:rPr"),
+        qn("w:br"),
+        qn("w:lastRenderedPageBreak"),
+        qn("w:bookmarkStart"),
+        qn("w:bookmarkEnd"),
+        qn("w:proofErr"),
+    }
+    for child in reversed(list(body)):
+        if child.tag == qn("w:sectPr"):
+            continue
+        if child.tag != qn("w:p"):
+            break
+        paragraph = Paragraph(child, document._body)
+        if paragraph.text.strip():
+            break
+        ppr = child.find(qn("w:pPr"))
+        if ppr is not None and ppr.find(qn("w:sectPr")) is not None:
+            break
+        nodes = [
+            node
+            for node in child.iter()
+            if node is not child
+            and node.tag not in {qn("w:pPr"), qn("w:rPr"), qn("w:proofErr")}
+        ]
+        if any(
+            node.tag == qn("w:br") and node.get(qn("w:type")) not in (None, "page")
+            for node in nodes
+        ):
+            break  # 含换行、分栏等分隔符，保留
+        if any(node.tag not in harmless for node in nodes):
+            break  # 含图片、域、内容控件等，保留
+        body.remove(child)
+
+
+def split_document_by_chapters(
+    source: Path,
+    output_dir: Path,
+    log,
+    date_suffix: str | None = None,
+) -> list[Path]:
+    """把总文档按章节标题拆分为单独文档，格式保持不变。
+
+    每个拆分文档都是原文档的完整副本，只删除其他章节的正文元素，
+    因此样式、主题、编号、页眉页脚、图片、表格等格式全部原样保留。
+    文件名为「章号_章节标题_日期.docx」，日期默认为当天（YYYYMMDD）。
+    """
+    from datetime import datetime
+
+    from docx import Document
+    from docx.oxml.ns import qn
+
+    suffix = date_suffix or datetime.now().strftime("%Y%m%d")
+    temp_dir = Path(tempfile.mkdtemp(prefix="wm_split_"))
+    outputs: list[Path] = []
+    try:
+        docx_path = _convert_to_docx([source], temp_dir, log)[0]
+        document = Document(str(docx_path))
+        spans = _document_spans(document)
+        if not spans:
+            raise ValueError(
+                "文档中未找到章节标题（优先使用一级标题，没有一级标题时使用其他级别标题），无法拆分。"
+            )
+
+        total = len(spans)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        log(f"共识别 {total} 个章节，开始拆分：{source.name}")
+
+        children = list(document.element.body)
+        snapshot = _numbering_snapshot(document)
+
+        used: set[str] = {source.stem.lower()}
+        for index, span in enumerate(spans, start=1):
+            number_text = _chapter_number_text(span.number, index)
+            title = _chapter_title_from_heading(span.heading) or "章节"
+            stem = _safe_filename_part(
+                f"{number_text}_{title}_{suffix}",
+                f"{number_text}_章节_{suffix}",
+            )
+            candidate = stem
+            duplicate = 2
+            while candidate.lower() in used:
+                candidate = f"{stem}_{duplicate}"
+                duplicate += 1
+            used.add(candidate.lower())
+            target = output_dir / f"{candidate}.docx"
+
+            chapter = Document(str(docx_path))
+            body = chapter.element.body
+            for position, child in enumerate(list(body)):
+                if child.tag == qn("w:sectPr"):
+                    continue
+                if span.start <= position < span.end:
+                    continue
+                body.remove(child)
+            _strip_trailing_page_breaks(chapter)
+            _apply_numbering_starts(
+                chapter, _chapter_numbering_starts(snapshot, children, span)
+            )
+            chapter.save(str(target))
+            outputs.append(target)
+            log(f"[{index}/{total}] {span.heading} -> {target.name}")
+
+        log(f"拆分完成，共生成 {len(outputs)} 个文档：{output_dir}")
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    return outputs
+
+
+# --------------------------------------------------------------------------
+# 删除标记区间：*ocs_start* … *ocs_end* 之间的内容
+# --------------------------------------------------------------------------
+
+DEFAULT_MARKER_START = "*ocs_start*"
+DEFAULT_MARKER_END = "*ocs_end*"
+
+# 删除位置两侧需要一并清掉的分隔字符（半角空格、制表符、不换行空格、全角空格）
+_JOIN_WHITESPACE = " \t 　"
+
+# 出现这些内容的空段落不删除：删掉会影响图片、域、页码、编号、分节、
+# 书签或修订记录，可能让 Word 提示文档损坏
+_EMPTY_PARA_KEEP_TAGS = (
+    "w:drawing",
+    "w:pict",
+    "w:object",
+    "w:sectPr",
+    "w:footnoteReference",
+    "w:endnoteReference",
+    "w:commentReference",
+    "w:numPr",
+    "w:fldChar",
+    "w:fldSimple",
+    "w:txbxContent",
+    "w:bookmarkStart",
+    "w:bookmarkEnd",
+    "w:commentRangeStart",
+    "w:commentRangeEnd",
+    "w:permStart",
+    "w:permEnd",
+    "w:ins",
+    "w:del",
+)
+
+
+def _nested_paragraph(element, body) -> bool:
+    """element 是否嵌套在另一个段落里（文本框中的段落），这类段落不参与查找。"""
+    from docx.oxml.ns import qn
+
+    parent = element.getparent()
+    while parent is not None and parent is not body:
+        if parent.tag == qn("w:p"):
+            return True
+        parent = parent.getparent()
+    return False
+
+
+def _all_paragraph_elements(document) -> list:
+    """按正文顺序返回所有段落元素，包含表格里的段落，不含文本框内的段落。"""
+    from docx.oxml.ns import qn
+
+    body = document.element.body
+    return [
+        element
+        for element in body.iter(qn("w:p"))
+        if not _nested_paragraph(element, body)
+    ]
+
+
+def _paragraph_segments(paragraph_element) -> list[tuple]:
+    """把段落拆成按顺序排列的文字片段：[(节点, 类型, 文字, 起始, 结束)]。
+
+    类型为 text（w:t）或 separator（制表符、换行）。文本框里的内容不计入。
+    """
+    from docx.oxml.ns import qn
+
+    segments: list[tuple] = []
+    offset = 0
+    for node in paragraph_element.iter():
+        if node is paragraph_element:
+            continue
+        tag = node.tag
+        if tag == qn("w:t"):
+            text = node.text or ""
+            kind = "text"
+        elif tag == qn("w:tab"):
+            text = "\t"
+            kind = "separator"
+        elif tag in (qn("w:br"), qn("w:cr")):
+            text = "\n"
+            kind = "separator"
+        else:
+            continue
+        parent = node.getparent()
+        nested = False
+        while parent is not None and parent is not paragraph_element:
+            if parent.tag == qn("w:p"):
+                nested = True
+                break
+            parent = parent.getparent()
+        if nested:
+            continue
+        segments.append((node, kind, text, offset, offset + len(text)))
+        offset += len(text)
+    return segments
+
+
+def _paragraph_plain_text(paragraph_element) -> str:
+    """段落中可见文字（含制表符与换行），与 Word 里看到的一致。"""
+    return "".join(segment[2] for segment in _paragraph_segments(paragraph_element))
+
+
+def _expand_join_whitespace(text: str, start: int, end: int) -> tuple[int, int]:
+    """把删除区间向外扩到相邻的空格/制表符，避免删完留下多余空白。"""
+    while start > 0 and text[start - 1] in _JOIN_WHITESPACE:
+        start -= 1
+    while end < len(text) and text[end] in _JOIN_WHITESPACE:
+        end += 1
+    return start, end
+
+
+def _delete_text_in_paragraph(paragraph_element, start: int, end: int) -> None:
+    """删除段落文字中的 [start, end)，只改文字，不动任何格式。"""
+    if end <= start:
+        return
+    from docx.oxml.ns import qn
+
+    for node, kind, text, seg_start, seg_end in _paragraph_segments(paragraph_element):
+        if seg_end <= start or seg_start >= end:
+            continue
+        if kind == "separator":
+            if node.getparent() is not None:
+                node.getparent().remove(node)
+            continue
+        cut_from = max(start, seg_start) - seg_start
+        cut_to = min(end, seg_end) - seg_start
+        remaining = text[:cut_from] + text[cut_to:]
+        node.text = remaining
+        if remaining != remaining.strip():
+            node.set(qn("xml:space"), "preserve")
+
+
+def _paragraph_is_blank(element) -> bool:
+    """段落是否已经没有可见内容（空段落或只剩空白）。"""
+    from docx.oxml.ns import qn
+
+    if element is None or element.tag != qn("w:p"):
+        return False
+    for tag in _EMPTY_PARA_KEEP_TAGS:
+        if next(element.iter(qn(tag)), None) is not None:
+            return False
+    return not _paragraph_plain_text(element).strip(" \t\r\n 　")
+
+
+def _remove_blank_paragraphs_between(parent, left, right) -> int:
+    """删除 parent 中 left 与 right 之间的空段落（left/right 可为 None）。"""
+    children = list(parent)
+    try:
+        start_index = children.index(left) + 1 if left is not None else 0
+        end_index = children.index(right) if right is not None else len(children)
+    except ValueError:
+        return 0
+    if end_index <= start_index:
+        return 0
+    removed = 0
+    for child in children[start_index:end_index]:
+        if _paragraph_is_blank(child):
+            parent.remove(child)
+            removed += 1
+    return removed
+
+
+def _neighbour_outside_blank(element, backwards: bool):
+    """沿指定方向跳过空段落，返回第一个有内容的元素（可为 None）。"""
+    node = element
+    while node is not None and _paragraph_is_blank(node):
+        node = node.getprevious() if backwards else node.getnext()
+    return node
+
+
+def _marker_variants(marker: str) -> list[str]:
+    """标记本身与去掉外侧星号后的写法都认（Word 里常写成 *ocs_start*）。"""
+    variants = [marker]
+    stripped = marker.strip("*").strip()
+    if stripped and stripped != marker:
+        variants.append(stripped)
+    return variants
+
+
+def _find_marker(text: str, marker: str, start: int = 0):
+    """在文字中查找标记，返回 (起始, 结束)；标记外包裹的星号一并算进区间。"""
+    best = None
+    for candidate in _marker_variants(marker):
+        index = text.find(candidate, start)
+        if index == -1:
+            continue
+        end = index + len(candidate)
+        # 把紧贴标记的星号一起删掉，避免留下 ** 或 *
+        while index > 0 and text[index - 1] == "*":
+            index -= 1
+        while end < len(text) and text[end] == "*":
+            end += 1
+        if best is None or index < best[0]:
+            best = (index, end)
+    return best
+
+
+def _find_marker_pairs(document, start_marker: str, end_marker: str, log) -> list[tuple]:
+    """找出所有标记对的 (起始段, 起始位置, 结束段, 结束位置)。"""
+    pairs: list[tuple] = []
+    pending = None
+    for element in _all_paragraph_elements(document):
+        text = _paragraph_plain_text(element)
+        if not text:
+            continue
+        cursor = 0
+        while cursor <= len(text):
+            start_hit = _find_marker(text, start_marker, cursor)
+            end_hit = _find_marker(text, end_marker, cursor)
+            if start_hit is None and end_hit is None:
+                break
+            if start_hit is not None and (end_hit is None or start_hit[0] <= end_hit[0]):
+                if pending is not None:
+                    log(
+                        f"提示：{start_marker} 后没有找到 {end_marker}，"
+                        "上一处起始标记已忽略。"
+                    )
+                pending = (element, start_hit[0])
+                cursor = max(start_hit[1], cursor + 1)
+            else:
+                if pending is None:
+                    log(f"提示：发现多余的 {end_marker}，已忽略。")
+                else:
+                    pairs.append((pending[0], pending[1], element, end_hit[1]))
+                    pending = None
+                cursor = max(end_hit[1], cursor + 1)
+    if pending is not None:
+        log(f"提示：文档末尾的 {start_marker} 没有对应的 {end_marker}，未做删除。")
+    return pairs
+
+
+def _delete_marker_pair(start_p, start_off: int, end_p, end_off: int) -> int:
+    """删除一对标记之间的内容，返回顺带清理掉的空段落数。"""
+    if start_p is end_p:
+        text = _paragraph_plain_text(start_p)
+        begin, finish = _expand_join_whitespace(text, start_off, end_off)
+        _delete_text_in_paragraph(start_p, begin, finish)
+        if not _paragraph_is_blank(start_p):
+            return 0
+        parent = start_p.getparent()
+        left_ctx = _neighbour_outside_blank(start_p.getprevious(), backwards=True)
+        right_ctx = _neighbour_outside_blank(start_p.getnext(), backwards=False)
+        parent.remove(start_p)
+        return 1 + _remove_blank_paragraphs_between(parent, left_ctx, right_ctx)
+
+    parent = start_p.getparent()
+    if end_p.getparent() is not parent:
+        raise ValueError(
+            "标记跨越了表格或文本框的边界，无法安全删除，"
+            "请把两个标记放在同一段落/同一单元格内。"
+        )
+
+    start_text = _paragraph_plain_text(start_p)
+    end_text = _paragraph_plain_text(end_p)
+    begin, _ = _expand_join_whitespace(start_text, start_off, len(start_text))
+    _, finish = _expand_join_whitespace(end_text, 0, end_off)
+
+    siblings = list(parent)
+    first = siblings.index(start_p)
+    last = siblings.index(end_p)
+    # 标记之间的整块内容（段落、表格、图片等）全部删除
+    for child in siblings[first + 1 : last]:
+        parent.remove(child)
+
+    _delete_text_in_paragraph(start_p, begin, len(start_text))
+    _delete_text_in_paragraph(end_p, 0, finish)
+
+    removed = 0
+    if _paragraph_is_blank(start_p):
+        left_ctx = _neighbour_outside_blank(start_p.getprevious(), backwards=True)
+        parent.remove(start_p)
+        removed += 1
+    else:
+        left_ctx = start_p
+    if _paragraph_is_blank(end_p):
+        right_ctx = _neighbour_outside_blank(end_p.getnext(), backwards=False)
+        parent.remove(end_p)
+        removed += 1
+    else:
+        right_ctx = end_p
+    removed += _remove_blank_paragraphs_between(parent, left_ctx, right_ctx)
+    return removed
+
+
+def _ensure_containers_have_paragraph(document) -> None:
+    """删除后保证正文和每个单元格至少还有一个段落，否则 Word 会报文档损坏。"""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    body = document.element.body
+    for cell in body.iter(qn("w:tc")):
+        if cell.find(qn("w:p")) is None:
+            cell.append(OxmlElement("w:p"))
+    if body.find(qn("w:p")) is None and body.find(qn("w:tbl")) is None:
+        paragraph = OxmlElement("w:p")
+        section = body.find(qn("w:sectPr"))
+        if section is not None:
+            section.addprevious(paragraph)
+        else:
+            body.append(paragraph)
+
+
+def delete_marked_sections(
+    source: Path,
+    output: Path,
+    start_marker: str = DEFAULT_MARKER_START,
+    end_marker: str = DEFAULT_MARKER_END,
+    log=print,
+) -> dict:
+    """删除文档中 start_marker … end_marker 之间的内容（含两个标记本身）。
+
+    只删文字、不动其余段落的格式；删除位置两侧遗留的空段落和空格一并清理。
+    返回 {"ranges": 删除的区间数, "paragraphs": 清理的空段落数}。
+    """
+    from docx import Document
+
+    start_marker = (start_marker or "").strip()
+    end_marker = (end_marker or "").strip()
+    if not start_marker or not end_marker:
+        raise ValueError("起始标记和结束标记不能为空。")
+    if start_marker == end_marker:
+        raise ValueError("起始标记和结束标记不能相同。")
+
+    document = Document(str(source))
+    pairs = _find_marker_pairs(document, start_marker, end_marker, log)
+    cleaned = 0
+    if pairs:
+        # 从后往前删：同一段落里的后一处标记先删，前面记录的偏移量才不会失效
+        for start_p, start_off, end_p, end_off in reversed(pairs):
+            cleaned += _delete_marker_pair(start_p, start_off, end_p, end_off)
+        _ensure_containers_have_paragraph(document)
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    document.save(str(output))
+    return {"ranges": len(pairs), "paragraphs": cleaned}
+
+
+def delete_marked_sections_in_files(
+    files: list[Path],
+    start_marker: str = DEFAULT_MARKER_START,
+    end_marker: str = DEFAULT_MARKER_END,
+    log=print,
+    save_source: bool = False,
+) -> tuple[Path, list[tuple[str, str]]]:
+    """批量删除标记区间。
+
+    save_source 为 True 时直接改源文件（先备份，返回备份目录）；
+    为 False 时源文件不动，结果写入新建的“标记删除结果_时间”目录并返回该目录。
+    返回（输出目录或备份目录，失败的 [(文件名, 原因)]）；单个文件失败不影响其他文件。
+    """
+    import shutil
+    import tempfile
+
+    if not files:
+        raise ValueError("请先添加或选择要处理的 Word 文档。")
+
+    failures: list[tuple[str, str]] = []
+    temp_dir = Path(tempfile.mkdtemp(prefix="wm_marked_"))
+    if save_source:
+        backup_root = _make_backup_dir(files[0].parent, "_标记删除备份")
+        output_dir = None
+        log(f"开始删除标记区间（保存源文件），源文件将备份到：{backup_root}")
+    else:
+        backup_root = files[0].parent  # 占位，未使用
+        output_dir = _make_output_dir(files[0].parent, "标记删除结果")
+        log(f"开始删除标记区间（不保存源文件），结果输出到：{output_dir}")
+
+    try:
+        for index, path in enumerate(files, start=1):
+            docx_path = _convert_to_docx([path], temp_dir, log)[0]
+            if save_source:
+                shutil.copy2(path, backup_root / f"{index:03d}_{path.name}")
+                if path.suffix.lower() == ".docx":
+                    target = path
+                else:
+                    target = path.with_suffix(".docx")
+                    log(f"注意：{path.name} 不是 .docx，结果另存为 {target.name}")
+            else:
+                target = output_dir / f"{path.stem}.docx"
+
+            try:
+                result = delete_marked_sections(
+                    docx_path, target, start_marker, end_marker, log
+                )
+            except Exception as exc:
+                failures.append((path.name, str(exc)))
+                log(f"[{index}/{len(files)}] {path.name}：删除失败（{exc}）")
+                continue
+            if result["ranges"]:
+                log(
+                    f"[{index}/{len(files)}] {path.name}："
+                    f"删除 {result['ranges']} 处标记区间，"
+                    f"清理 {result['paragraphs']} 个空段落"
+                )
+            else:
+                log(
+                    f"[{index}/{len(files)}] {path.name}："
+                    f"未找到 {start_marker} … {end_marker}，已原样复制"
+                )
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    return (output_dir if output_dir is not None else backup_root), failures
 
 
 # --------------------------------------------------------------------------
@@ -2429,12 +3737,14 @@ def _effective_style_format(style_table: dict, style_defaults: dict, style_id: s
 _RE_MANUAL_NUMBER = re.compile(
     r"^\s*(?:"
     r"第\s*[0-9零〇一二三四五六七八九十百两]+\s*[章节篇部]"
+    r"|(?:chapter|chap\.?|ch\.?)\s*[0-9]+"
     r"|[0-9]+(?:\.[0-9]+)+[\s　、.．]"
     r"|[0-9]+[.．、]\s"
     r"|[（(]\s*(?:[0-9]+|[一二三四五六七八九十]+)\s*[)）]"
     r"|(?:[0-9]+|[一二三四五六七八九十]+)\s*[、.．](?![0-9])"
     r"|[一二三四五六七八九十]+、"
-    r")"
+    r")",
+    re.I,
 )
 
 
@@ -4071,8 +5381,10 @@ def build_style_summary(reference: Path, output: Path, log) -> Path:
 def merge_documents(files: list[Path], output: Path, options: MergeOptions, log) -> str:
     """合并入口，返回实际使用的引擎名称。
 
-    默认用 docxcompose 按顺序拼接文档内容：它会给每份文档的编号单独建立定义，
-    从而保留各文档原有的多级列表序号；非 .docx 文件先用 Word 转换为临时 .docx。
+    默认用 docxcompose 按顺序拼接文档内容，并以第一个文档为主文档：
+    主文档的样式库、多级列表编号和页面设置原样保留，后续文档依次插入，
+    同名但定义不同的样式随所在文档各带一份副本，不改变源文件。
+    非 .docx 文件先用 Word 转换为临时 .docx。
     """
     if options.unify_styles and options.style_source:
         return _merge_with_unified_styles(files, output, options, log)
@@ -4118,21 +5430,24 @@ class MergeApp:
         self.busy = False
         self.output_auto = True
         self._setting_output = False
+        self._open_dir: Path | None = None
 
         root.title("Word 文档按章节合并")
-        root.geometry("1020x820")
-        root.minsize(980, 700)
+        root.geometry("1020x940")
+        root.minsize(980, 780)
 
         self.auto_sort = tk.BooleanVar(value=True)
         self.page_break = tk.BooleanVar(value=True)
         self.make_toc = tk.BooleanVar(value=True)
         self.toc_title = tk.StringVar(value="目录")
         self.style_source = tk.StringVar(value="")
-        self.prune_styles = tk.BooleanVar(value=True)
-        self.unify_styles = tk.BooleanVar(value=True)
+        self.prune_styles = tk.BooleanVar(value=False)
+        self.unify_styles = tk.BooleanVar(value=False)
         self.standalone_import = tk.BooleanVar(value=True)
         self.standalone_prune = tk.BooleanVar(value=True)
-        self.save_source = tk.BooleanVar(value=True)
+        self.marker_start = tk.StringVar(value=DEFAULT_MARKER_START)
+        self.marker_end = tk.StringVar(value=DEFAULT_MARKER_END)
+        self.save_source = tk.BooleanVar(value=False)
         self.output_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="就绪")
 
@@ -4157,7 +5472,10 @@ class MergeApp:
         ttk.Label(
             header, text="按章节合并 Word 文档", font=("Microsoft YaHei UI", 14, "bold")
         ).pack(anchor="w")
-        hint = "添加或拖入多份文档，每份文档作为一章；仅按章号排序，不改动文档内的编号。"
+        hint = (
+            "添加或拖入多份文档，每份文档作为一章；仅按章号排序并拼接，"
+            "不修改章节文档，也不改动原有格式和样式库。"
+        )
         if not HAS_DND:
             hint += "（提示：安装 tkinterdnd2 后可拖拽文件）"
         ttk.Label(header, text=hint, foreground="#555").pack(anchor="w", pady=(4, 0))
@@ -4169,11 +5487,15 @@ class MergeApp:
             side="left", padx=(6, 0)
         )
         ttk.Button(
-            toolbar, text="导入单章…", command=self.import_single_chapter
+            toolbar, text="合并/导入单章节…", command=self.import_chapter_into_document
         ).pack(side="left", padx=(6, 0))
         ttk.Button(
             toolbar, text="合并到文档…", command=self.merge_into_document
         ).pack(side="left", padx=(6, 0))
+        self.split_button = ttk.Button(
+            toolbar, text="拆分总文档…", command=self.split_document
+        )
+        self.split_button.pack(side="left", padx=(6, 0))
         self.format_button = ttk.Button(
             toolbar, text="套用模板样式…", command=self.apply_template_to_file
         )
@@ -4247,24 +5569,30 @@ class MergeApp:
         ttk.Button(
             style_row, text="清除", command=lambda: self.style_source.set("")
         ).pack(side="left", padx=(6, 0))
+        ttk.Label(
+            options,
+            text="默认仅按章节拼接：以第一个文档为基准（样式、多级列表、页面设置不变），"
+            "不修改任何章节文档，不导入/删除样式。",
+            foreground="#555",
+        ).grid(row=2, column=0, columnspan=5, sticky="w", pady=(6, 0))
         ttk.Checkbutton(
             options,
-            text="删除模板之外的样式（未选模板时只删除正文未使用的样式；同名重复的未使用样式一并清理）",
+            text="删除模板之外的样式（需手动勾选；未选模板时只删除正文未使用的样式；同名重复的未使用样式一并清理）",
             variable=self.prune_styles,
-        ).grid(row=2, column=0, columnspan=5, sticky="w", pady=(6, 0))
+        ).grid(row=3, column=0, columnspan=5, sticky="w", pady=(2, 0))
         self.unify_check = ttk.Checkbutton(
             options,
-            text="合并前先逐个文件统一为模板样式（会修改源文件，自动备份；之后用 docxcompose 合并，不再改动格式）",
+            text="合并前先逐个文件统一为模板样式（需手动勾选；默认只处理临时副本，不影响源文件）",
             variable=self.unify_styles,
         )
-        self.unify_check.grid(row=3, column=0, columnspan=5, sticky="w", pady=(4, 0))
+        self.unify_check.grid(row=4, column=0, columnspan=5, sticky="w", pady=(4, 0))
         self.save_source_check = ttk.Checkbutton(
             options,
-            text="保存源文件（取消勾选则不改动源文件：合并时用临时副本，单独处理时输出到新文件夹）",
+            text="写回源文件（默认关闭：合并与样式处理只操作临时副本/新文件夹，勾选后才会修改源文件并自动备份）",
             variable=self.save_source,
         )
         self.save_source_check.grid(
-            row=4, column=0, columnspan=5, sticky="w", pady=(4, 0)
+            row=5, column=0, columnspan=5, sticky="w", pady=(4, 0)
         )
         self.style_source.trace_add("write", lambda *_: self._sync_style_options())
         self._sync_style_options()
@@ -4287,7 +5615,30 @@ class MergeApp:
         self.style_button.pack(side="right")
         ttk.Label(
             solo,
-            text="未选中文件时处理列表中的全部文件；会直接修改源文件，处理前自动备份。",
+            text="未选中文件时处理列表中的全部文件；默认不修改源文件（输出到新文件夹），勾选「写回源文件」后才会备份并修改原文件。",
+            foreground="#555",
+        ).pack(anchor="w", pady=(4, 0))
+
+        marked = ttk.LabelFrame(outer, text="删除标记区间（不合并）", padding=8)
+        marked.pack(fill="x", pady=(0, 6))
+        marked_row = ttk.Frame(marked)
+        marked_row.pack(fill="x")
+        ttk.Label(marked_row, text="起始标记：").pack(side="left")
+        ttk.Entry(marked_row, textvariable=self.marker_start, width=16).pack(
+            side="left"
+        )
+        ttk.Label(marked_row, text="结束标记：").pack(side="left", padx=(12, 0))
+        ttk.Entry(marked_row, textvariable=self.marker_end, width=16).pack(side="left")
+        self.mark_button = ttk.Button(
+            marked_row,
+            text="删除选中文件中的标记区间…",
+            command=self.start_delete_marked,
+        )
+        self.mark_button.pack(side="right")
+        ttk.Label(
+            marked,
+            text="删除两个标记之间的全部内容及标记本身，并清理删除位置两侧遗留的空段落与空格；"
+            "其余内容的文字、样式、编号均保持不变。",
             foreground="#555",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -4357,21 +5708,105 @@ class MergeApp:
         if folder:
             self._add_directory(Path(folder))
 
-    # ---------------- 导入单独章节 ----------------
-    def import_single_chapter(self):
-        """弹窗选择一个单独的章节文档，合并（新增）或替换到列表中。"""
+    # ---------------- 合并 / 导入单章节 ----------------
+    def import_chapter_into_document(self):
+        """先选单章节、再选总文档；总文档已有同章节时可选择替换。"""
         if self.busy:
             return
+
+        chapter = self._ask_word_file("第 1 步：选择要导入的单个章节文档")
+        if chapter is None:
+            return
+        target = self._ask_word_file("第 2 步：选择要合并到的总文档")
+        if target is None:
+            return
+        try:
+            same_file = chapter.resolve() == target.resolve()
+        except Exception:
+            same_file = chapter == target
+        if same_file:
+            messagebox.showwarning(
+                "文件重复", "章节文档不能与总文档是同一个文件，请重新选择。"
+            )
+            return
+
+        self.status_var.set("正在分析总文档的章节…")
+        self.root.update_idletasks()
+        try:
+            info = analyze_chapter_import(chapter, target, self._log)
+        except Exception as exc:
+            messagebox.showerror("分析失败", str(exc))
+            return
+        self.status_var.set("就绪")
+
+        action = self._ask_import_chapter_action(chapter, target, info)
+        if action is None:
+            return
+
+        save_name = filedialog.asksaveasfilename(
+            title="保存合并结果",
+            defaultextension=".docx",
+            initialdir=str(target.parent),
+            initialfile=f"{target.stem}_更新.docx",
+            filetypes=[("Word 文档", "*.docx")],
+        )
+        if not save_name:
+            return
+        output = Path(save_name).with_suffix(".docx")
+        for source, label in ((target, "总文档"), (chapter, "章节文档")):
+            try:
+                if output.resolve() == source.resolve():
+                    messagebox.showwarning(
+                        "路径冲突",
+                        f"输出文件不能与{label}相同，请另选一个文件名。",
+                    )
+                    return
+            except Exception:
+                pass
+        if output.exists():
+            if not messagebox.askyesno(
+                "文件已存在", f"输出文件已存在，要覆盖吗？\n{output}"
+            ):
+                return
+
+        options = MergeOptions(
+            make_toc=False,
+            page_break=self.page_break.get(),
+        )
+
+        self.busy = True
+        self.merge_button.configure(state="disabled")
+        self.style_button.configure(state="disabled")
+        self.format_button.configure(state="disabled")
+        self.summary_button.configure(state="disabled")
+        self.split_button.configure(state="disabled")
+        self.open_button.configure(state="disabled")
+        self.progress.start(12)
+        self.status_var.set("正在导入单章节…")
+        self._append_log("=" * 60)
+        self._append_log(
+            f"单章节{'替换' if action == 'replace' else '导入'}：{chapter.name}"
+            f" -> {target.name}（输出 {output}）"
+        )
+
+        worker = threading.Thread(
+            target=self._into_worker,
+            args=(target, [chapter], output, action, options),
+            daemon=True,
+        )
+        worker.start()
+
+    def _ask_word_file(self, title: str) -> Path | None:
+        """弹窗选择一个 Word 文档，校验后返回绝对路径。"""
         filename = filedialog.askopenfilename(
-            title="选择单独的章节文档",
+            title=title,
             filetypes=[
                 ("Word 文档", "*.docx *.doc *.docm *.rtf"),
                 ("所有文件", "*.*"),
             ],
         )
         if not filename:
-            return
-
+            return None
         path = Path(filename)
         try:
             path = path.resolve()
@@ -4379,92 +5814,90 @@ class MergeApp:
             pass
         if path.name.startswith("~$") or not path.is_file():
             messagebox.showwarning("文件无效", f"无法读取该文件：\n{path}")
-            return
+            return None
         if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             messagebox.showwarning(
-                "文件类型不支持",
-                "仅支持 .docx / .doc / .docm / .rtf 文档。",
+                "文件类型不支持", "仅支持 .docx / .doc / .docm / .rtf 文档。"
             )
-            return
+            return None
+        return path
 
-        selection = list(self.listbox.curselection())
-        action = self._ask_chapter_action(path, len(selection) == 1)
-        if action is None:
-            return
-
-        self.status_var.set(f"正在读取：{path.name}")
-        self.root.update_idletasks()
-        item = detect_document(path)
-
-        if action == "replace":
-            index = selection[0]
-            old = self.items[index]
-            if any(
-                existing.path == path and position != index
-                for position, existing in enumerate(self.items)
-            ):
-                messagebox.showinfo("提示", f"列表中已包含该文件：\n{path.name}")
-                return
-            self.items[index] = item
-            self._append_log(
-                f"已用「{path.name}」替换「{old.path.name}」"
-                f"（{item.chapter_label}）"
-            )
-        else:
-            if any(existing.path == path for existing in self.items):
-                messagebox.showinfo("提示", f"列表中已包含该文件：\n{path.name}")
-                return
-            self.items.append(item)
-            self._append_log(f"已导入单章：{path.name}（{item.chapter_label}）")
-
-        if self.auto_sort.get():
-            self._sort_items()
-        self.refresh_list()
-        for index, existing in enumerate(self.items):
-            if existing.path == path:
-                self.listbox.selection_clear(0, "end")
-                self.listbox.selection_set(index)
-                self.listbox.see(index)
-                break
-        if self.output_auto or not self.output_var.get().strip():
-            self._refresh_output_default()
-        self.status_var.set(f"已添加 {len(self.items)} 个文件")
-
-    def _ask_chapter_action(self, path: Path, can_replace: bool) -> str | None:
-        """询问：把选中的文档合并为新的章节，还是替换列表中选中的章节。"""
+    def _ask_import_chapter_action(self, chapter: Path, target: Path, info: dict):
+        """展示总文档的章节，确认是替换已有同章节还是插入新章节。"""
         dialog = tk.Toplevel(self.root)
-        dialog.title("导入单独章节")
+        dialog.title("合并 / 导入单章节")
         dialog.transient(self.root)
         dialog.resizable(False, False)
 
         frame = ttk.Frame(dialog, padding=14)
         frame.pack(fill="both", expand=True)
         ttk.Label(
-            frame, text=f"已选择：{path.name}", font=("Microsoft YaHei UI", 10, "bold")
+            frame,
+            text=f"章节文档：{chapter.name}",
+            font=("Microsoft YaHei UI", 10, "bold"),
         ).pack(anchor="w")
         ttk.Label(
             frame,
-            text=f"识别章号：{detect_document(path).chapter_label}",
+            text=f"识别章号：{_chapter_label(info['number'])}"
+            f"    标题：{info['title'] or '（未识别）'}",
             foreground="#555",
-        ).pack(anchor="w", pady=(2, 10))
-        ttk.Label(frame, text="请选择处理方式：").pack(anchor="w")
+        ).pack(anchor="w", pady=(2, 0))
+        ttk.Label(
+            frame,
+            text=f"总文档：{target.name}（共 {len(info['spans'])} 章）",
+            font=("Microsoft YaHei UI", 10, "bold"),
+        ).pack(anchor="w", pady=(10, 0))
 
-        action = tk.StringVar(value="append")
+        spans = info["spans"]
+        match_index = info["match_index"]
+        if match_index is not None:
+            match_heading = spans[match_index]["heading"]
+            ttk.Label(
+                frame,
+                text=f"总文档中已有同章节：【{match_heading}】，可替换该章节。",
+                foreground="#1f6f3f",
+            ).pack(anchor="w", pady=(6, 4))
+        elif spans:
+            ttk.Label(
+                frame,
+                text=f"总文档中没有找到【{_chapter_label(info['number'])}】，将作为新章节插入。",
+                foreground="#8a4b00",
+            ).pack(anchor="w", pady=(6, 4))
+        else:
+            ttk.Label(
+                frame,
+                text="总文档中没有找到章节标题，本章将追加到文末。",
+                foreground="#8a4b00",
+            ).pack(anchor="w", pady=(6, 4))
+
+        if spans:
+            listbox = tk.Listbox(
+                frame, height=min(8, max(4, len(spans))), width=70, activestyle="none"
+            )
+            listbox.pack(fill="x", pady=(0, 10))
+            for index, span in enumerate(spans, start=1):
+                listbox.insert("end", f"{index}. {span['heading']}")
+            if match_index is not None:
+                listbox.selection_set(match_index)
+                listbox.see(match_index)
+            listbox.configure(state="disabled")
+
+        ttk.Label(frame, text="请选择处理方式：").pack(anchor="w")
+        action = tk.StringVar(value="replace" if match_index is not None else "insert")
+        if match_index is not None:
+            ttk.Radiobutton(
+                frame,
+                text=f"替换：用本章替换【{match_heading}】"
+                "（只替换这一章，总文档其余内容与格式保持不变）",
+                variable=action,
+                value="replace",
+            ).pack(anchor="w", pady=(6, 0))
         ttk.Radiobutton(
             frame,
-            text="合并：作为新的章节加入列表（按章号排序）",
+            text="插入：按章号插入到总文档的对应位置（原有章节保持不变）",
             variable=action,
-            value="append",
-        ).pack(anchor="w", pady=(6, 0))
-        replace_radio = ttk.Radiobutton(
-            frame,
-            text="替换：替换列表中当前选中的章节",
-            variable=action,
-            value="replace",
-        )
-        replace_radio.pack(anchor="w", pady=(4, 0))
-        if not can_replace:
-            replace_radio.configure(state="disabled")
+            value="insert",
+        ).pack(anchor="w", pady=(4, 0))
 
         buttons = ttk.Frame(frame)
         buttons.pack(fill="x", pady=(14, 0))
@@ -4474,19 +5907,22 @@ class MergeApp:
             result["value"] = action.get()
             dialog.destroy()
 
-        def cancel():
-            dialog.destroy()
-
-        ttk.Button(buttons, text="取消", command=cancel).pack(side="right")
+        ttk.Button(buttons, text="取消", command=dialog.destroy).pack(side="right")
         ttk.Button(buttons, text="确定", command=confirm).pack(
             side="right", padx=(0, 6)
         )
         dialog.bind("<Return>", lambda _event: confirm())
-        dialog.bind("<Escape>", lambda _event: cancel())
+        dialog.bind("<Escape>", lambda _event: dialog.destroy())
         dialog.update_idletasks()
         try:
-            x = self.root.winfo_rootx() + (self.root.winfo_width() - dialog.winfo_width()) // 2
-            y = self.root.winfo_rooty() + (self.root.winfo_height() - dialog.winfo_height()) // 3
+            x = (
+                self.root.winfo_rootx()
+                + (self.root.winfo_width() - dialog.winfo_width()) // 2
+            )
+            y = (
+                self.root.winfo_rooty()
+                + (self.root.winfo_height() - dialog.winfo_height()) // 3
+            )
             dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
         except Exception:
             pass
@@ -4585,6 +6021,7 @@ class MergeApp:
         self.style_button.configure(state="disabled")
         self.format_button.configure(state="disabled")
         self.summary_button.configure(state="disabled")
+        self.split_button.configure(state="disabled")
         self.open_button.configure(state="disabled")
         self.progress.start(12)
         self.status_var.set("正在合并到文档…")
@@ -4691,6 +6128,7 @@ class MergeApp:
         self._finish()
         self.status_var.set(f"已完成（{engine}）")
         self._append_log(f"已生成：{output}")
+        self._open_dir = output.parent
         self.open_button.configure(state="normal")
         if messagebox.askyesno(
             "处理完成", f"文档已生成：\n{output}\n\n是否立即打开？"
@@ -4699,6 +6137,115 @@ class MergeApp:
                 os.startfile(str(output))
             except Exception as exc:
                 messagebox.showerror("无法打开文档", str(exc))
+
+    # ---------------- 按章节拆分总文档 ----------------
+    def split_document(self):
+        """把一本总文档按章节拆分为多个单独文档，格式保持不变。"""
+        if self.busy:
+            return
+
+        filename = filedialog.askopenfilename(
+            title="选择要按章节拆分的总文档",
+            filetypes=[
+                ("Word 文档", "*.docx *.doc *.docm *.rtf"),
+                ("所有文件", "*.*"),
+            ],
+        )
+        if not filename:
+            return
+        path = Path(filename)
+        try:
+            path = path.resolve()
+        except Exception:
+            pass
+        if not path.is_file() or path.name.startswith("~$"):
+            messagebox.showwarning("文件无效", f"无法读取该文件：\n{path}")
+            return
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            messagebox.showwarning(
+                "文件类型不支持", "仅支持 .docx / .doc / .docm / .rtf 文档。"
+            )
+            return
+
+        self.status_var.set("正在读取章节…")
+        self.root.update_idletasks()
+        temp_dir = Path(tempfile.mkdtemp(prefix="wm_split_preview_"))
+        try:
+            docx_path = _convert_to_docx([path], temp_dir, self._log)[0]
+            from docx import Document
+
+            spans = _document_spans(Document(str(docx_path)))
+        except Exception as exc:
+            messagebox.showerror("读取失败", str(exc))
+            return
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        if not spans:
+            messagebox.showwarning(
+                "未找到章节",
+                "文档中未找到章节标题（优先使用一级标题，没有一级标题时使用其他级别标题），"
+                "无法拆分。",
+            )
+            return
+
+        names = "\n".join(f"  {span.heading}" for span in spans[:8])
+        if len(spans) > 8:
+            names += f"\n  …等 {len(spans)} 章"
+        if not messagebox.askyesno(
+            "按章节拆分",
+            f"识别到 {len(spans)} 个章节：\n\n{names}\n\n"
+            f"将拆分为 {len(spans)} 个单独文档，是否继续？",
+        ):
+            return
+
+        folder = filedialog.askdirectory(
+            title="选择拆分后文档的保存文件夹", initialdir=str(path.parent)
+        )
+        if not folder:
+            return
+        output_dir = Path(folder)
+
+        self.busy = True
+        self.merge_button.configure(state="disabled")
+        self.split_button.configure(state="disabled")
+        self.style_button.configure(state="disabled")
+        self.format_button.configure(state="disabled")
+        self.summary_button.configure(state="disabled")
+        self.open_button.configure(state="disabled")
+        self.progress.start(12)
+        self.status_var.set("正在拆分文档…")
+        self._append_log("=" * 60)
+        self._append_log(f"按章节拆分：{path.name} -> {output_dir}")
+
+        worker = threading.Thread(
+            target=self._split_worker, args=(path, output_dir), daemon=True
+        )
+        worker.start()
+
+    def _split_worker(self, path: Path, output_dir: Path):
+        try:
+            outputs = split_document_by_chapters(path, output_dir, self._log)
+            self.messages.put(("split_done", (output_dir, outputs)))
+        except Exception as exc:
+            self.messages.put(("error", (exc, traceback.format_exc())))
+
+    def _on_split_done(self, output_dir: Path, outputs: list[Path]):
+        self._finish()
+        self.status_var.set(f"拆分完成（{len(outputs)} 个文档）")
+        self._append_log(
+            f"拆分完成，共生成 {len(outputs)} 个文档：{output_dir}"
+        )
+        self._open_dir = output_dir
+        self.open_button.configure(state="normal")
+        if messagebox.askyesno(
+            "拆分完成",
+            f"已拆分为 {len(outputs)} 个文档：\n{output_dir}\n\n是否打开输出文件夹？",
+        ):
+            try:
+                os.startfile(str(output_dir))
+            except Exception as exc:
+                messagebox.showerror("无法打开文件夹", str(exc))
 
     # ---------------- 分析并套用模板样式 ----------------
     def apply_template_to_file(self):
@@ -4799,6 +6346,7 @@ class MergeApp:
         self.style_button.configure(state="disabled")
         self.format_button.configure(state="disabled")
         self.summary_button.configure(state="disabled")
+        self.split_button.configure(state="disabled")
         self.open_button.configure(state="disabled")
         self.progress.start(12)
         self.status_var.set("正在套用模板样式…")
@@ -5129,6 +6677,7 @@ class MergeApp:
             summary += f"，{tables} 个表格（样式未改动）"
         self.status_var.set(f"已套用样式（{paragraphs} 段）")
         self._append_log(f"套用完成，共处理 {summary}：{output}")
+        self._open_dir = output.parent
         self.open_button.configure(state="normal")
         note = ""
         if mismatched:
@@ -5208,6 +6757,7 @@ class MergeApp:
         self.style_button.configure(state="disabled")
         self.format_button.configure(state="disabled")
         self.summary_button.configure(state="disabled")
+        self.split_button.configure(state="disabled")
         self.open_button.configure(state="disabled")
         self.progress.start(12)
         self.status_var.set("正在生成汇总模板…")
@@ -5232,6 +6782,7 @@ class MergeApp:
         self._finish()
         self.status_var.set("汇总模板已生成")
         self._append_log(f"汇总模板已生成：{output}")
+        self._open_dir = output.parent
         self.open_button.configure(state="normal")
         if messagebox.askyesno(
             "生成完成", f"汇总模板已生成：\n{output}\n\n是否立即打开？"
@@ -5353,6 +6904,7 @@ class MergeApp:
     def _on_output_edited(self, *_):
         if not self._setting_output:
             self.output_auto = False
+            self._open_dir = None
 
     def choose_output(self):
         initial = self.output_var.get().strip()
@@ -5386,11 +6938,14 @@ class MergeApp:
             self.style_source.set(filename)
 
     def open_output_folder(self):
-        text = self.output_var.get().strip()
-        if not text:
-            return
-        path = Path(text)
-        folder = path.parent if path.parent.exists() else Path.home()
+        if self._open_dir is not None and self._open_dir.exists():
+            folder = self._open_dir
+        else:
+            text = self.output_var.get().strip()
+            if not text:
+                return
+            path = Path(text)
+            folder = path.parent if path.parent.exists() else Path.home()
         try:
             os.startfile(str(folder))
         except Exception as exc:
@@ -5470,6 +7025,7 @@ class MergeApp:
         self.style_button.configure(state="disabled")
         self.format_button.configure(state="disabled")
         self.summary_button.configure(state="disabled")
+        self.split_button.configure(state="disabled")
         self.open_button.configure(state="disabled")
         self.progress.start(12)
         self.status_var.set("正在处理样式…")
@@ -5506,6 +7062,7 @@ class MergeApp:
     def _on_style_done(self, folder: Path, save_source: bool = True):
         self._finish()
         self.status_var.set("样式处理完成")
+        self._open_dir = folder
         if save_source:
             self._append_log(f"样式处理完成，原文件备份：{folder}")
             message = f"已完成样式处理。\n\n原文件备份在：\n{folder}\n\n是否打开备份文件夹？"
@@ -5513,6 +7070,127 @@ class MergeApp:
             self._append_log(f"样式处理完成，结果输出：{folder}")
             message = f"已完成样式处理（源文件未改动）。\n\n结果输出在：\n{folder}\n\n是否打开输出文件夹？"
         if messagebox.askyesno("样式处理完成", message):
+            try:
+                os.startfile(str(folder))
+            except Exception as exc:
+                messagebox.showerror("无法打开文件夹", str(exc))
+
+    # ---------------- 删除标记区间 ----------------
+    def start_delete_marked(self):
+        if self.busy:
+            return
+        selection = list(self.listbox.curselection())
+        items = [self.items[i] for i in selection] if selection else list(self.items)
+        if not items:
+            messagebox.showwarning("提示", "请先添加要处理的 Word 文档。")
+            return
+
+        start_marker = self.marker_start.get().strip()
+        end_marker = self.marker_end.get().strip()
+        if not start_marker or not end_marker:
+            messagebox.showwarning("提示", "请填写起始标记和结束标记。")
+            return
+        if start_marker == end_marker:
+            messagebox.showwarning("提示", "起始标记和结束标记不能相同。")
+            return
+        if any(char in start_marker + end_marker for char in "\r\n"):
+            messagebox.showwarning("提示", "标记不能包含换行。")
+            return
+
+        names = "\n".join(f"  {item.path.name}" for item in items[:8])
+        if len(items) > 8:
+            names += f"\n  …等 {len(items)} 个文件"
+        save_source = self.save_source.get()
+        if save_source:
+            note = "源文件会被直接修改（处理前自动备份）。"
+        else:
+            note = (
+                f"源文件保持原样，结果输出到「{items[0].path.parent.name}"
+                "」目录下新建的“标记删除结果_时间”文件夹。"
+            )
+        if not messagebox.askyesno(
+            "确认删除标记区间",
+            f"将删除下列 {len(items)} 个文件中\n"
+            f"{start_marker} 到 {end_marker} 之间的全部内容（含两个标记）：\n\n"
+            f"{names}\n\n{note}是否继续？",
+        ):
+            return
+
+        files = [item.path for item in items]
+        self.busy = True
+        for button in (
+            self.merge_button,
+            self.style_button,
+            self.format_button,
+            self.summary_button,
+            self.split_button,
+            self.mark_button,
+            self.open_button,
+        ):
+            button.configure(state="disabled")
+        self.progress.start(12)
+        self.status_var.set("正在删除标记区间…")
+        self._append_log("=" * 60)
+        self._append_log(
+            f"删除标记区间：{start_marker} … {end_marker}，共 {len(files)} 个文档"
+        )
+
+        worker = threading.Thread(
+            target=self._marked_worker,
+            args=(files, start_marker, end_marker, save_source),
+            daemon=True,
+        )
+        worker.start()
+
+    def _marked_worker(
+        self,
+        files: list[Path],
+        start_marker: str,
+        end_marker: str,
+        save_source: bool,
+    ):
+        try:
+            folder, failures = delete_marked_sections_in_files(
+                files,
+                start_marker,
+                end_marker,
+                self._log,
+                save_source=save_source,
+            )
+            self.messages.put(("marked_done", (folder, save_source, failures)))
+        except Exception as exc:
+            self.messages.put(("error", (exc, traceback.format_exc())))
+
+    def _on_marked_done(
+        self,
+        folder: Path,
+        save_source: bool = True,
+        failures: list[tuple[str, str]] | None = None,
+    ):
+        self._finish()
+        self._open_dir = folder
+        self.open_button.configure(state="normal")
+        failures = failures or []
+        if save_source:
+            self.status_var.set("标记区间已删除")
+            self._append_log(f"标记区间已删除，原文件备份：{folder}")
+            message = f"已删除标记区间。\n\n原文件备份在：\n{folder}\n\n是否打开备份文件夹？"
+        else:
+            self.status_var.set("标记区间已删除")
+            self._append_log(f"标记区间已删除，结果输出：{folder}")
+            message = (
+                f"已删除标记区间（源文件未改动）。\n\n结果输出在：\n{folder}"
+                "\n\n是否打开输出文件夹？"
+            )
+        if failures:
+            detail = "\n".join(f"  {name}：{reason}" for name, reason in failures[:5])
+            if len(failures) > 5:
+                detail += f"\n  …等 {len(failures)} 个文件"
+            message = (
+                f"有 {len(failures)} 个文件未能处理：\n{detail}\n\n"
+                + message
+            )
+        if messagebox.askyesno("标记区间已删除", message):
             try:
                 os.startfile(str(folder))
             except Exception as exc:
@@ -5576,6 +7254,7 @@ class MergeApp:
 
         self.busy = True
         self.merge_button.configure(state="disabled")
+        self.split_button.configure(state="disabled")
         self.open_button.configure(state="disabled")
         self.progress.start(12)
         self.status_var.set("正在合并…")
@@ -5598,6 +7277,7 @@ class MergeApp:
         self._finish()
         self.status_var.set(f"合并完成（{engine}）")
         self._append_log(f"合并完成：{output}")
+        self._open_dir = output.parent
         self.open_button.configure(state="normal")
         if messagebox.askyesno(
             "合并完成", f"文档已生成：\n{output}\n\n是否立即打开？"
@@ -5619,6 +7299,8 @@ class MergeApp:
         self.style_button.configure(state="normal")
         self.format_button.configure(state="normal")
         self.summary_button.configure(state="normal")
+        self.split_button.configure(state="normal")
+        self.mark_button.configure(state="normal")
         self.progress.stop()
 
     def _on_close(self):
@@ -5647,12 +7329,16 @@ class MergeApp:
                     self._on_merge_done(*payload)
                 elif kind == "style_done":
                     self._on_style_done(payload)
+                elif kind == "marked_done":
+                    self._on_marked_done(*payload)
                 elif kind == "into_done":
                     self._on_into_done(*payload)
                 elif kind == "format_done":
                     self._on_format_done(*payload)
                 elif kind == "summary_done":
                     self._on_summary_done(payload)
+                elif kind == "split_done":
+                    self._on_split_done(*payload)
                 elif kind == "error":
                     self._on_merge_error(*payload)
         except queue.Empty:
