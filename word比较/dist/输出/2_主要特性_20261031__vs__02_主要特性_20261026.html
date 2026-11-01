@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>2_主要特性_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>02_主要特性_20261026.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>94.6%</b></span>
+    <span class="chip ins">新增 <b>8</b></span>
+    <span class="chip del">删除 <b>0</b></span>
+    <span class="chip mod">修改 <b>70</b></span>
+    <span class="chip">格式变更 <b>400</b></span>
+    <span class="chip">表格变更 <b>0</b></span>
+    <span class="chip">共 <b>78</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 78</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>2_主要特性_20261031.docx（基准）</div>
+  <div>02_主要特性_20261026.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-modify changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>主要特性</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题1</span><span class="num">2 </span>主要特性</p><div class="fmt">格式变更：文字加粗: 关→开 ×4；段落编号层级: 继承→0</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>超低功耗工作环境</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>超低功耗工作环境</p><div class="fmt">格式变更：文字加粗: 继承→开 ×8；文字字体: 宋体→Microsoft JhengHei ×8；文字字号: 12 磅→9 磅 ×8；文字颜色: 000000→1A3349 ×8；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>电源电压范围： 2.2V到3.6V</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>电源电压范围： 2.2V到3.6V</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×17；文字字号: 12 磅→9 磅 ×17；文字颜色: 000000→1A3349 ×17；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-4"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">4</span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>温度范围：-40°C到105°C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>温度范围：-40°C到105°C</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×16；文字字号: 12 磅→9 磅 ×16；文字颜色: 000000→1A3349 ×16；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-5"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">5</span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>低功耗模式：睡眠模式，深度睡眠模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>低功耗模式：睡眠模式，深度睡眠模式</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×17；文字字号: 12 磅→9 磅 ×17；文字颜色: 000000→1A3349 ×17；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-6"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">6</span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>深度睡眠模式下功耗：~8uA</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>深度睡眠模式下功耗：~8uA</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×14；文字字号: 12 磅→9 磅 ×14；文字颜色: 000000→1A3349 ×14；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-7"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">7</span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>内核资源</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>内核资源</p><div class="fmt">格式变更：文字加粗: 继承→开 ×4；文字字体: 宋体→Microsoft JhengHei ×4；文字字号: 12 磅→9 磅 ×4；文字颜色: 000000→1A3349 ×4；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-8"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">8</span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>ARM 32bit-Cortex-M0+内核</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>ARM 32bit-Cortex-M0+内核</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×22；文字字号: 12 磅→9 磅 ×22；文字颜色: 000000→1A3349 ×22；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-9"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">9</span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>工作频率: 32KHz~96MHz</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>工作频率: 32KHz~96MHz</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×17；文字字号: 12 磅→9 磅 ×17；文字颜色: 000000→1A3349 ×17；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-10"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">10</span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>计算单元</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>计算单元</p><div class="fmt">格式变更：文字加粗: 继承→开 ×4；文字字体: 宋体→Microsoft JhengHei ×4；文字字号: 12 磅→9 磅 ×4；文字颜色: 000000→1A3349 ×4；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-11"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">11</span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持硬件除法/开方/正余弦等</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持硬件除法/开方/正余弦等</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×14；文字字号: 12 磅→9 磅 ×14；文字颜色: 000000→1A3349 ×14；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-12"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">12</span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>存储</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>存储</p><div class="fmt">格式变更：文字加粗: 继承→开 ×2；文字字体: 宋体→Microsoft JhengHei ×2；文字字号: 12 磅→9 磅 ×2；文字颜色: 000000→1A3349 ×2；段落段落样式: 单段落2→Normal；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-13"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">13</span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>128kB片内FLASH，带ECC保护功能</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>128kB片内FLASH，带ECC保护功能</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×21；文字字号: 12 磅→9 磅 ×21；文字颜色: 000000→1A3349 ×21；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-14"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">14</span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>16KB SRAM</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>16KB SRAM</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-15"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">15</span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>复位系统</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>复位系统</p><div class="fmt">格式变更：文字加粗: 继承→开 ×4；文字字体: 宋体→Microsoft JhengHei ×4；文字字号: 12 磅→9 磅 ×4；文字颜色: 000000→1A3349 ×4；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-16"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">16</span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持上电复位POR，掉电复位BOR</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持上电复位POR，掉电复位BOR</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×17；文字字号: 12 磅→9 磅 ×17；文字颜色: 000000→1A3349 ×17；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-17"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">17</span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持低电压监测PVD</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持低电压监测PVD</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×10；文字字号: 12 磅→9 磅 ×10；文字颜色: 000000→1A3349 ×10；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-18"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">18</span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持看门狗复位</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持看门狗复位</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×7；文字字号: 12 磅→9 磅 ×7；文字颜色: 000000→1A3349 ×7；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-19"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">19</span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持软件复位</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持软件复位</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×6；文字字号: 12 磅→9 磅 ×6；文字颜色: 000000→1A3349 ×6；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-20"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">20</span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>GPIO</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span><span class="ins"> </span>GPIO</p><div class="fmt">格式变更：文字加粗: 继承→开 ×4；文字字体: 宋体→Microsoft JhengHei ×4；文字字号: 12 磅→9 磅 ×4；文字颜色: 000000→1A3349 ×4；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-21"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">21</span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>最多可提供40个IO</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>最多可提供40个IO</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×10；文字字号: 12 磅→9 磅 ×10；文字颜色: 000000→1A3349 ×10；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-22"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">22</span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>均可提供中断</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>均可提供中断</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×6；文字字号: 12 磅→9 磅 ×6；文字颜色: 000000→1A3349 ×6；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-23"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">23</span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持上下拉功能</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持上下拉功能</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×7；文字字号: 12 磅→9 磅 ×7；文字颜色: 000000→1A3349 ×7；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-24"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">24</span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>DMA</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span><span class="ins"> </span>DMA</p><div class="fmt">格式变更：文字加粗: 继承→开 ×3；文字字体: 宋体→Microsoft JhengHei ×3；文字字号: 12 磅→9 磅 ×3；文字颜色: 000000→1A3349 ×3；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-25"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">25</span>
+      <span>25</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>6通道独立DMA</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>6通道独立DMA</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×8；文字字号: 12 磅→9 磅 ×8；文字颜色: 000000→1A3349 ×8；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-26"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">26</span>
+      <span>26</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>多个请求间的优先级可通过软件设置</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>多个请求间的优先级可通过软件设置</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×16；文字字号: 12 磅→9 磅 ×16；文字颜色: 000000→1A3349 ×16；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-27"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">27</span>
+      <span>27</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持循环的缓冲器管理</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持循环的缓冲器管理</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×10；文字字号: 12 磅→9 磅 ×10；文字颜色: 000000→1A3349 ×10；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-28"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">28</span>
+      <span>28</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>ADC</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>ADC</p><div class="fmt">格式变更：文字加粗: 继承→开 ×3；文字字体: 宋体→Microsoft JhengHei ×3；文字字号: 12 磅→9 磅 ×3；文字颜色: 000000→1A3349 ×3；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-29"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">29</span>
+      <span>29</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>12位SAR结构ADC</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>12位SAR结构ADC</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×11；文字字号: 12 磅→9 磅 ×11；文字颜色: 000000→1A3349 ×11；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-30"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">30</span>
+      <span>30</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>采样速率可到1.5Msps</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>采样速率可到1.5Msps</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×13；文字字号: 12 磅→9 磅 ×13；文字颜色: 000000→1A3349 ×13；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-31"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">31</span>
+      <span>31</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持参考电压可选:</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持参考电压可选:</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-32"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">32</span>
+      <span>32</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>VREF档位：1.5V/2V/2.5V/3V/VDD</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>VREF档位：1.5V/2V/2.5V/3V/VDD</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×26；文字字号: 12 磅→9 磅 ×26；文字颜色: 000000→1A3349 ×26；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-33"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">33</span>
+      <span>33</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持内部定时器定时触发</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持内部定时器定时触发</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×11；文字字号: 12 磅→9 磅 ×11；文字颜色: 000000→1A3349 ×11；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-34"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">34</span>
+      <span>34</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持通道可编程轮询</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持通道可编程轮询</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-35"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">35</span>
+      <span>35</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>PGA</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>PGA</p><div class="fmt">格式变更：文字加粗: 继承→开 ×3；文字字体: 宋体→继承 ×3；文字字号: 12 磅→9 磅 ×3；文字颜色: 000000→1A3349 ×3；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-36"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">36</span>
+      <span>36</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持电机单/双/三电阻电流采样</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持电机单/双/三电阻电流采样</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×15；文字字号: 12 磅→9 磅 ×15；文字颜色: 000000→1A3349 ×15；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-37"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">37</span>
+      <span>37</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持1x,2x,4x,8x,12x,16x,32x,64x倍增益</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持1x,2x,4x,8x,12x,16x,32x,64x倍增益</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×32；文字字号: 12 磅→9 磅 ×32；文字颜色: 000000→1A3349 ×32；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-38"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">38</span>
+      <span>38</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持内部比较器过流</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持内部比较器过流</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-39"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">39</span>
+      <span>39</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-40"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">40</span>
+      <span>40</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">&nbsp;</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-41"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">41</span>
+      <span>41</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-42"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">42</span>
+      <span>42</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-43"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">43</span>
+      <span>43</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-44"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">44</span>
+      <span>44</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>TEMP</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>TEMP</p><div class="fmt">格式变更：文字加粗: 继承→开 ×4；文字字体: 宋体→Microsoft JhengHei ×4；文字字号: 12 磅→9 磅 ×4；文字颜色: 000000→1A3349 ×4；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-45"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">45</span>
+      <span>45</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持内部节温检测TJ</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持内部节温检测TJ</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×10；文字字号: 12 磅→9 磅 ×10；文字颜色: 000000→1A3349 ×10；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-46"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">46</span>
+      <span>46</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持外部温度检测TS</p></div>
+    <div class="cell right"><p class="para align-both"><span class="num">-</span><span class="ins"> </span>支持外部温度检测TS</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×10；文字字号: 12 磅→9 磅 ×10；文字颜色: 000000→1A3349 ×10；段落对齐方式: 继承→both；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-47"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">47</span>
+      <span>47</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CAN通信</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>CAN通信</p><div class="fmt">格式变更：文字加粗: 继承→开 ×5；文字字体: 宋体→Microsoft JhengHei ×5；文字字号: 12 磅→9 磅 ×5；文字颜色: 000000→1A3349 ×5；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-48"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">48</span>
+      <span>48</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持CAN2.0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持CAN2.0</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×8；文字字号: 12 磅→9 磅 ×8；文字颜色: 000000→1A3349 ×8；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-49"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">49</span>
+      <span>49</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>UART通信</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>UART通信</p><div class="fmt">格式变更：文字加粗: 继承→开 ×6；文字字体: 宋体→Microsoft JhengHei ×6；文字字号: 12 磅→9 磅 ×6；文字颜色: 000000→1A3349 ×6；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-50"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">50</span>
+      <span>50</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持波特率可编程 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持波特率可编程 </p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-51"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">51</span>
+      <span>51</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持LIN协议</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持LIN协议</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×7；文字字号: 12 磅→9 磅 ×7；文字颜色: 000000→1A3349 ×7；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-52"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">52</span>
+      <span>52</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>IIC</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>IIC</p><div class="fmt">格式变更：文字加粗: 继承→开 ×3；文字字体: 宋体→Microsoft JhengHei ×3；文字字号: 12 磅→9 磅 ×3；文字颜色: 000000→1A3349 ×3；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-53"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">53</span>
+      <span>53</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持标准速率（100Kb/s），快速速率（1Mb/s）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span>支持标准速率（100Kb/s），快速速率（1Mb/s）</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×27；文字字号: 12 磅→9 磅 ×27；文字颜色: 000000→1A3349 ×27；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-54"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">54</span>
+      <span>54</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>SPI</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>SPI</p><div class="fmt">格式变更：文字加粗: 继承→开 ×3；文字字体: 宋体→Microsoft JhengHei ×3；文字字号: 12 磅→9 磅 ×3；文字颜色: 000000→1A3349 ×3；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-55"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">55</span>
+      <span>55</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持主/从模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span>支持主/从模式</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×7；文字字号: 12 磅→9 磅 ×7；文字颜色: 000000→1A3349 ×7；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-56"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">56</span>
+      <span>56</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>最快传输速度为系统时钟1/4</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>最快传输速度为系统时钟1/4</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×14；文字字号: 12 磅→9 磅 ×14；文字颜色: 000000→1A3349 ×14；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-57"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">57</span>
+      <span>57</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>通用定时器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>通用定时器</p><div class="fmt">格式变更：文字加粗: 继承→开 ×5；文字字体: 宋体→Microsoft JhengHei ×5；文字字号: 12 磅→9 磅 ×5；文字颜色: 000000→1A3349 ×5；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-58"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">58</span>
+      <span>58</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>4个32bit通用定时器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>4个32bit通用定时器</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×12；文字字号: 12 磅→9 磅 ×12；文字颜色: 000000→1A3349 ×12；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-59"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">59</span>
+      <span>59</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持捕获模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持捕获模式</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×6；文字字号: 12 磅→9 磅 ×6；文字颜色: 000000→1A3349 ×6；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-60"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">60</span>
+      <span>60</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持比较模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持比较模式</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×6；文字字号: 12 磅→9 磅 ×6；文字颜色: 000000→1A3349 ×6；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-61"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">61</span>
+      <span>61</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>MCPWM定时器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>MCPWM定时器</p><div class="fmt">格式变更：文字加粗: 继承→开 ×8；文字字体: 宋体→Microsoft JhengHei ×8；文字字号: 12 磅→9 磅 ×8；文字颜色: 000000→1A3349 ×8；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-62"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">62</span>
+      <span>62</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持6路互补或12路独立不交叠PWM输出</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持6路互补或12路独立不交叠PWM输出</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×20；文字字号: 12 磅→9 磅 ×20；文字颜色: 000000→1A3349 ×20；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-63"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">63</span>
+      <span>63</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持掩码及掩码预设</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持掩码及掩码预设</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-64"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">64</span>
+      <span>64</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持边沿/中心对齐</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持边沿/中心对齐</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-65"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">65</span>
+      <span>65</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持移相</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持移相</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×4；文字字号: 12 磅→9 磅 ×4；文字颜色: 000000→1A3349 ×4；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-66"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">66</span>
+      <span>66</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持死区可配</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持死区可配</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×6；文字字号: 12 磅→9 磅 ×6；文字颜色: 000000→1A3349 ×6；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-67"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">67</span>
+      <span>67</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>可用于触发ADC</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>可用于触发ADC</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×8；文字字号: 12 磅→9 磅 ×8；文字颜色: 000000→1A3349 ×8；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-68"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">68</span>
+      <span>68</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>其他</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>其他</p><div class="fmt">格式变更：文字加粗: 继承→开 ×2；文字字体: 宋体→继承 ×2；文字字号: 12 磅→9 磅 ×2；文字颜色: 000000→1A3349 ×2；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-69"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">69</span>
+      <span>69</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持HALL滤波和捕获</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持HALL滤波和捕获</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×11；文字字号: 12 磅→9 磅 ×11；文字颜色: 000000→1A3349 ×11；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-70"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">70</span>
+      <span>70</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持QEP正交编码(CW/CCW双脉冲)</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持QEP正交编码(CW/CCW双脉冲)</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×20；文字字号: 12 磅→9 磅 ×20；文字颜色: 000000→1A3349 ×20；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-71"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">71</span>
+      <span>71</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持SWD调试接口</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>支持SWD调试接口</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-72"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">72</span>
+      <span>72</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>安全功能</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num"></span>安全功能</p><div class="fmt">格式变更：文字加粗: 继承→开 ×4；文字字体: 宋体→继承 ×4；文字字号: 12 磅→9 磅 ×4；文字颜色: 000000→1A3349 ×4；段落段落样式: 单段落→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-73"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">73</span>
+      <span>73</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>128位唯一UID</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>128位唯一UID</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-74"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">74</span>
+      <span>74</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>128位用户UID</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span><span class="ins"> </span>128位用户UID</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×9；文字字号: 12 磅→9 磅 ×9；文字颜色: 000000→1A3349 ×9；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-75"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">75</span>
+      <span>75</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>支持Flash加密，配置后在Debug模式下Flash不可读</p></div>
+    <div class="cell right"><p class="para align-left"><span class="num">-</span>支持Flash加密，配置后在Debug模式下Flash不可读</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×30；文字字号: 12 磅→9 磅 ×30；文字颜色: 000000→1A3349 ×30；段落段落样式: 单段落2→Normal；段落编号层级: 0→1；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-76"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">76</span>
+      <span>76</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-both"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-77"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">77</span>
+      <span>77</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-both"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-78"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">78</span>
+      <span>78</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-both"><span class="ins"></span></p></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>

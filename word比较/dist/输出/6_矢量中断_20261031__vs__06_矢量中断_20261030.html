@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>6_矢量中断_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>06_矢量中断_20261030.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>85.7%</b></span>
+    <span class="chip ins">新增 <b>0</b></span>
+    <span class="chip del">删除 <b>6</b></span>
+    <span class="chip mod">修改 <b>13</b></span>
+    <span class="chip">格式变更 <b>24</b></span>
+    <span class="chip">表格变更 <b>1</b></span>
+    <span class="chip">共 <b>19</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 19</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>6_矢量中断_20261031.docx（基准）</div>
+  <div>06_矢量中断_20261030.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-modify changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>矢量中断</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题1</span><span class="num">6 </span>矢量中断</p><div class="fmt">格式变更：文字加粗: 关→开 ×4；段落编号层级: 继承→0</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>中断控制器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">6.1 </span>中断控制器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>NVIC用于中断的高效处理。矢量中断控制器最大可支持32个中断源。每个中断源拥有独立软件可编程的中断优先级。矢量中断控制器收集来自不同中断源的中断请求，依据中断优先级对中断请求进行仲裁。最高优先级的中断将获得控制权并请求处理器。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1</span>NVIC用于中断的高效处理。矢量中断控制器最大可支持32个中断源。每个中断源拥有独立软件可编程的中断优先级。矢量中断控制器收集来自不同中断源的中断请求，依据中断优先级对中断请求进行仲裁。最高优先级的中断将获得控制权并请求处理器。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×114；段落段落样式: 段落正文→正文1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-4"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">4</span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>矢量中断控制器支持中断嵌套。当处理器正在处理一个中断请求的同时，来了一个更高优先级的中断请求，处理器将中断当前中断服务程序的处理，响应该更高优先级的中断请求。在更高优先级的中断请求处理结束时，CPU返回被打断的中断服务程序继续执行。矢量中断控制器允许高优先级的中断请求抢占低优先级的中断请求，但不允许同级别或者低优先级的中断抢占，保证了中断响应的实时性。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1</span>矢量中断控制器支持中断嵌套。当处理器正在处理一个中断请求的同时，来了一个更高优先级的中断请求，处理器将中断当前中断服务程序的处理，响应该更高优先级的中断请求。在更高优先级的中断请求处理结束时，CPU返回被打断的中断服务程序继续执行。矢量中断控制器允许高优先级的中断请求抢占低优先级的中断请求，但不允许同级别或者低优先级的中断抢占，保证了中断响应的实时性。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×177；段落段落样式: 段落正文→正文1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-5"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">5</span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>中断列表</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">6.2 </span>中断列表</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">Exception <br>Number</td><td class="tcell">IRQ <br>Number</td><td class="tcell">Priority</td><td class="tcell">Exception or Interrupt</td><td class="tcell">Vector</td></tr><tr class="trow-equal"><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">Reserved</td><td class="tcell">0x00</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">-</td><td class="tcell">-3</td><td class="tcell">Reset</td><td class="tcell">0x04</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">-14</td><td class="tcell">-2</td><td class="tcell">NMI(IWDG &amp; WWDT)</td><td class="tcell">0x08</td></tr><tr class="trow-equal"><td class="tcell">3</td><td class="tcell">-13</td><td class="tcell">-1</td><td class="tcell">HardFault</td><td class="tcell">0x0C</td></tr><tr class="trow-equal"><td class="tcell">4~10</td><td class="tcell">-</td><td class="tcell">-</td><td class="tcell">Reserved</td><td class="tcell">-</td></tr><tr class="trow-equal"><td class="tcell">11</td><td class="tcell">-5</td><td class="tcell">configurable</td><td class="tcell">SVCall</td><td class="tcell">0x2C</td></tr><tr class="trow-equal"><td class="tcell">12 ~ 13</td><td class="tcell">-</td><td class="tcell">-</td><td class="tcell">Reserved</td><td class="tcell">-</td></tr><tr class="trow-equal"><td class="tcell">14</td><td class="tcell">-2</td><td class="tcell">configurable</td><td class="tcell">PendSV</td><td class="tcell">0x38</td></tr><tr class="trow-equal"><td class="tcell">15</td><td class="tcell">-1</td><td class="tcell">configurable</td><td class="tcell">SysTick</td><td class="tcell">0x3C</td></tr><tr class="trow-equal"><td class="tcell">16</td><td class="tcell">0</td><td class="tcell">configurable</td><td class="tcell">AON</td><td class="tcell">0x40</td></tr><tr class="trow-equal"><td class="tcell">17</td><td class="tcell">1</td><td class="tcell">configurable</td><td class="tcell">FLASH</td><td class="tcell">0x44</td></tr><tr class="trow-equal"><td class="tcell">18</td><td class="tcell">2</td><td class="tcell">configurable</td><td class="tcell">UART0</td><td class="tcell">0x48</td></tr><tr class="trow-equal"><td class="tcell">19</td><td class="tcell">3</td><td class="tcell">configurable</td><td class="tcell">UART1</td><td class="tcell">0x4C</td></tr><tr class="trow-equal"><td class="tcell">20</td><td class="tcell">4</td><td class="tcell">configurable</td><td class="tcell">SPI0</td><td class="tcell">0x50</td></tr><tr class="trow-equal"><td class="tcell">21</td><td class="tcell">5</td><td class="tcell">configurable</td><td class="tcell">SPI1</td><td class="tcell">0x54</td></tr><tr class="trow-equal"><td class="tcell">22</td><td class="tcell">6</td><td class="tcell">configurable</td><td class="tcell">MCPWM(IRQ0)</td><td class="tcell">0x58</td></tr><tr class="trow-equal"><td class="tcell">23</td><td class="tcell">7</td><td class="tcell">configurable</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">0x5C</td></tr><tr class="trow-equal"><td class="tcell">24</td><td class="tcell">8</td><td class="tcell">configurable</td><td class="tcell">I2C0</td><td class="tcell">0x60</td></tr><tr class="trow-equal"><td class="tcell">25</td><td class="tcell">9</td><td class="tcell">configurable</td><td class="tcell">I2C1</td><td class="tcell">0x64</td></tr><tr class="trow-equal"><td class="tcell">26</td><td class="tcell">10</td><td class="tcell">configurable</td><td class="tcell">GPIOA</td><td class="tcell">0x64</td></tr><tr class="trow-equal"><td class="tcell">27</td><td class="tcell">11</td><td class="tcell">configurable</td><td class="tcell">GPIOB</td><td class="tcell">0x64</td></tr><tr class="trow-equal"><td class="tcell">28</td><td class="tcell">12</td><td class="tcell">configurable</td><td class="tcell">GPIOC</td><td class="tcell">0x70</td></tr><tr class="trow-equal"><td class="tcell">29</td><td class="tcell">13</td><td class="tcell">configurable</td><td class="tcell">TIM13</td><td class="tcell">0x74</td></tr><tr class="trow-equal"><td class="tcell">30</td><td class="tcell">14</td><td class="tcell">configurable</td><td class="tcell">TIM14</td><td class="tcell">0x78</td></tr><tr class="trow-equal"><td class="tcell">31</td><td class="tcell">15</td><td class="tcell">configurable</td><td class="tcell">TIM15</td><td class="tcell">0x7C</td></tr><tr class="trow-equal"><td class="tcell">32</td><td class="tcell">16</td><td class="tcell">configurable</td><td class="tcell">TIM16</td><td class="tcell">0x80</td></tr><tr class="trow-equal"><td class="tcell">33</td><td class="tcell">17</td><td class="tcell">configurable</td><td class="tcell">ADC</td><td class="tcell">0x84</td></tr><tr class="trow-equal"><td class="tcell">34</td><td class="tcell">18</td><td class="tcell">configurable</td><td class="tcell">HALL</td><td class="tcell">0x88</td></tr><tr class="trow-equal"><td class="tcell">35</td><td class="tcell">19</td><td class="tcell">configurable</td><td class="tcell">QEP</td><td class="tcell">0x8C</td></tr><tr class="trow-equal"><td class="tcell">36</td><td class="tcell">20</td><td class="tcell">configurable</td><td class="tcell">DMA</td><td class="tcell">0x90</td></tr><tr class="trow-equal"><td class="tcell">37</td><td class="tcell">21</td><td class="tcell">configurable</td><td class="tcell">BOR</td><td class="tcell">0x94</td></tr><tr class="trow-equal"><td class="tcell">38</td><td class="tcell">22</td><td class="tcell">configurable</td><td class="tcell">PVD</td><td class="tcell">0x98</td></tr><tr class="trow-equal"><td class="tcell">39</td><td class="tcell">23</td><td class="tcell">configurable</td><td class="tcell">CSA</td><td class="tcell">0x9C</td></tr><tr class="trow-equal"><td class="tcell">40</td><td class="tcell">24</td><td class="tcell">configurable</td><td class="tcell">TJ_OTS</td><td class="tcell">0xA0</td></tr><tr class="trow-equal"><td class="tcell">41</td><td class="tcell">25</td><td class="tcell">configurable</td><td class="tcell">TJ_OTW</td><td class="tcell">0xA4</td></tr><tr class="trow-equal"><td class="tcell">42</td><td class="tcell">26</td><td class="tcell">configurable</td><td class="tcell">PLL_ERR</td><td class="tcell">0xA8</td></tr><tr class="trow-equal"><td class="tcell">43</td><td class="tcell">27</td><td class="tcell">configurable</td><td class="tcell">ANAC0</td><td class="tcell">0xAC</td></tr><tr class="trow-equal"><td class="tcell">44</td><td class="tcell">28</td><td class="tcell">configurable</td><td class="tcell">ANAC1</td><td class="tcell">0xB0</td></tr><tr class="trow-equal"><td class="tcell">45</td><td class="tcell">29</td><td class="tcell">configurable</td><td class="tcell">--</td><td class="tcell">0xB4</td></tr><tr class="trow-equal"><td class="tcell">46</td><td class="tcell">30</td><td class="tcell">configurable</td><td class="tcell">--</td><td class="tcell">0xB8</td></tr><tr class="trow-equal"><td class="tcell">47</td><td class="tcell">31</td><td class="tcell">configurable</td><td class="tcell">--</td><td class="tcell">0xBC</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">Exception <br>Number</td><td class="tcell">IRQ <br>Number</td><td class="tcell">Priority</td><td class="tcell">Exception or Interrupt</td><td class="tcell">Vector</td></tr><tr class="trow-equal"><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">Reserved</td><td class="tcell">0x00</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">-</td><td class="tcell">-3</td><td class="tcell">Reset</td><td class="tcell">0x04</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">-14</td><td class="tcell">-2</td><td class="tcell">NMI(IWDG &amp; WWDT)</td><td class="tcell">0x08</td></tr><tr class="trow-equal"><td class="tcell">3</td><td class="tcell">-13</td><td class="tcell">-1</td><td class="tcell">HardFault</td><td class="tcell">0x0C</td></tr><tr class="trow-equal"><td class="tcell">4~10</td><td class="tcell">-</td><td class="tcell">-</td><td class="tcell">Reserved</td><td class="tcell">-</td></tr><tr class="trow-equal"><td class="tcell">11</td><td class="tcell">-5</td><td class="tcell">configurable</td><td class="tcell">SVCall</td><td class="tcell">0x2C</td></tr><tr class="trow-equal"><td class="tcell">12 ~ 13</td><td class="tcell">-</td><td class="tcell">-</td><td class="tcell">Reserved</td><td class="tcell">-</td></tr><tr class="trow-equal"><td class="tcell">14</td><td class="tcell">-2</td><td class="tcell">configurable</td><td class="tcell">PendSV</td><td class="tcell">0x38</td></tr><tr class="trow-equal"><td class="tcell">15</td><td class="tcell">-1</td><td class="tcell">configurable</td><td class="tcell">SysTick</td><td class="tcell">0x3C</td></tr><tr class="trow-equal"><td class="tcell">16</td><td class="tcell">0</td><td class="tcell">configurable</td><td class="tcell">AON</td><td class="tcell">0x40</td></tr><tr class="trow-equal"><td class="tcell">17</td><td class="tcell">1</td><td class="tcell">configurable</td><td class="tcell">FLASH</td><td class="tcell">0x44</td></tr><tr class="trow-equal"><td class="tcell">18</td><td class="tcell">2</td><td class="tcell">configurable</td><td class="tcell">UART0</td><td class="tcell">0x48</td></tr><tr class="trow-equal"><td class="tcell">19</td><td class="tcell">3</td><td class="tcell">configurable</td><td class="tcell">UART1</td><td class="tcell">0x4C</td></tr><tr class="trow-equal"><td class="tcell">20</td><td class="tcell">4</td><td class="tcell">configurable</td><td class="tcell">SPI0</td><td class="tcell">0x50</td></tr><tr class="trow-equal"><td class="tcell">21</td><td class="tcell">5</td><td class="tcell">configurable</td><td class="tcell">SPI1</td><td class="tcell">0x54</td></tr><tr class="trow-equal"><td class="tcell">22</td><td class="tcell">6</td><td class="tcell">configurable</td><td class="tcell">MCPWM(IRQ0)</td><td class="tcell">0x58</td></tr><tr class="trow-equal"><td class="tcell">23</td><td class="tcell">7</td><td class="tcell">configurable</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">0x5C</td></tr><tr class="trow-equal"><td class="tcell">24</td><td class="tcell">8</td><td class="tcell">configurable</td><td class="tcell">I2C0</td><td class="tcell">0x60</td></tr><tr class="trow-equal"><td class="tcell">25</td><td class="tcell">9</td><td class="tcell">configurable</td><td class="tcell">I2C1</td><td class="tcell">0x64</td></tr><tr class="trow-equal"><td class="tcell">26</td><td class="tcell">10</td><td class="tcell">configurable</td><td class="tcell">GPIOA</td><td class="tcell">0x64</td></tr><tr class="trow-equal"><td class="tcell">27</td><td class="tcell">11</td><td class="tcell">configurable</td><td class="tcell">GPIOB</td><td class="tcell">0x64</td></tr><tr class="trow-equal"><td class="tcell">28</td><td class="tcell">12</td><td class="tcell">configurable</td><td class="tcell">GPIOC</td><td class="tcell">0x70</td></tr><tr class="trow-equal"><td class="tcell">29</td><td class="tcell">13</td><td class="tcell">configurable</td><td class="tcell">TIM13</td><td class="tcell">0x74</td></tr><tr class="trow-equal"><td class="tcell">30</td><td class="tcell">14</td><td class="tcell">configurable</td><td class="tcell">TIM14</td><td class="tcell">0x78</td></tr><tr class="trow-equal"><td class="tcell">31</td><td class="tcell">15</td><td class="tcell">configurable</td><td class="tcell">TIM15</td><td class="tcell">0x7C</td></tr><tr class="trow-equal"><td class="tcell">32</td><td class="tcell">16</td><td class="tcell">configurable</td><td class="tcell">TIM16</td><td class="tcell">0x80</td></tr><tr class="trow-equal"><td class="tcell">33</td><td class="tcell">17</td><td class="tcell">configurable</td><td class="tcell">ADC</td><td class="tcell">0x84</td></tr><tr class="trow-equal"><td class="tcell">34</td><td class="tcell">18</td><td class="tcell">configurable</td><td class="tcell">HALL</td><td class="tcell">0x88</td></tr><tr class="trow-equal"><td class="tcell">35</td><td class="tcell">19</td><td class="tcell">configurable</td><td class="tcell">QEP</td><td class="tcell">0x8C</td></tr><tr class="trow-equal"><td class="tcell">36</td><td class="tcell">20</td><td class="tcell">configurable</td><td class="tcell">DMA</td><td class="tcell">0x90</td></tr><tr class="trow-equal"><td class="tcell">37</td><td class="tcell">21</td><td class="tcell">configurable</td><td class="tcell">BOR</td><td class="tcell">0x94</td></tr><tr class="trow-equal"><td class="tcell">38</td><td class="tcell">22</td><td class="tcell">configurable</td><td class="tcell">PVD</td><td class="tcell">0x98</td></tr><tr class="trow-equal"><td class="tcell">39</td><td class="tcell">23</td><td class="tcell">configurable</td><td class="tcell">CSA</td><td class="tcell">0x9C</td></tr><tr class="trow-equal"><td class="tcell">40</td><td class="tcell">24</td><td class="tcell">configurable</td><td class="tcell">TJ_OTS</td><td class="tcell">0xA0</td></tr><tr class="trow-equal"><td class="tcell">41</td><td class="tcell">25</td><td class="tcell">configurable</td><td class="tcell">TJ_OTW</td><td class="tcell">0xA4</td></tr><tr class="trow-equal"><td class="tcell">42</td><td class="tcell">26</td><td class="tcell">configurable</td><td class="tcell">PLL_ERR</td><td class="tcell">0xA8</td></tr><tr class="trow-equal"><td class="tcell">43</td><td class="tcell">27</td><td class="tcell">configurable</td><td class="tcell">ANAC0</td><td class="tcell">0xAC</td></tr><tr class="trow-equal"><td class="tcell">44</td><td class="tcell">28</td><td class="tcell">configurable</td><td class="tcell">ANAC1</td><td class="tcell">0xB0</td></tr><tr class="trow-equal"><td class="tcell">45</td><td class="tcell">29</td><td class="tcell">configurable</td><td class="tcell">--</td><td class="tcell">0xB4</td></tr><tr class="trow-equal"><td class="tcell">46</td><td class="tcell">30</td><td class="tcell">configurable</td><td class="tcell">--</td><td class="tcell">0xB8</td></tr><tr class="trow-equal"><td class="tcell">47</td><td class="tcell">31</td><td class="tcell">configurable</td><td class="tcell">--</td><td class="tcell">0xBC</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-6"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">6</span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>中断控制寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">6.3 </span>中断控制寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">地址</td><td class="tcell">寄存器</td><td class="tcell">复位值</td><td class="tcell">描述</td><td class="tcell">备注</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E100</td><td class="tcell">ISER</td><td class="tcell">0x0</td><td class="tcell">系统中断使能寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E180</td><td class="tcell">ICER</td><td class="tcell">0x0</td><td class="tcell">系统中断禁止寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E200</td><td class="tcell">ISPR</td><td class="tcell">0x0</td><td class="tcell">系统中断挂起使能寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E280</td><td class="tcell">ICPR</td><td class="tcell">0x0</td><td class="tcell">系统中断挂起禁止寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_ED10</td><td class="tcell">SCR</td><td class="tcell">0x0</td><td class="tcell">系统控制寄存器</td><td class="tcell">--</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">地址</td><td class="tcell">寄存器</td><td class="tcell">复位值</td><td class="tcell">描述</td><td class="tcell">备注</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E100</td><td class="tcell">ISER</td><td class="tcell">0x0</td><td class="tcell">系统中断使能寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E180</td><td class="tcell">ICER</td><td class="tcell">0x0</td><td class="tcell">系统中断禁止寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E200</td><td class="tcell">ISPR</td><td class="tcell">0x0</td><td class="tcell">系统中断挂起使能寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_E280</td><td class="tcell">ICPR</td><td class="tcell">0x0</td><td class="tcell">系统中断挂起禁止寄存器</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">0xE000_ED10</td><td class="tcell">SCR</td><td class="tcell">0x0</td><td class="tcell">系统控制寄存器</td><td class="tcell">--</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-7"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">7</span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>ISER寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">6.3.1 </span>ISER寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-8"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">8</span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0xE000E100 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1</span>地址：0xE000E100 </p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14；段落段落样式: 段落正文→正文1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-9"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">9</span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:29]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[28]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">ANAC1</td><td class="tcell">模拟中断1使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">ANAC0</td><td class="tcell">模拟中断0使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">PLL_ERR</td><td class="tcell">PLL异常中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">TJ_OTW</td><td class="tcell">温度检测OTW中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">TJ_OTS</td><td class="tcell">温度检测OTS中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">CSA</td><td class="tcell">过流检测中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">PVD</td><td class="tcell">低电压检测中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">BOR</td><td class="tcell">上电复位中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">DMA</td><td class="tcell">DMA中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">QEP</td><td class="tcell">QEP编码器中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">HALL</td><td class="tcell">HALL编码器中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">ADC</td><td class="tcell">ADC中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">TIM16</td><td class="tcell">TIM16中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[15]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">TIM15</td><td class="tcell tcell-changed">TIM15中断使能<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[14]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">TIM14</td><td class="tcell tcell-changed">TIM14中断使能<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[13]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">TIM13</td><td class="tcell tcell-changed">TIM13中断使能<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">GPIOC</td><td class="tcell">GPIOC中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">GPIOB</td><td class="tcell">GPIOB中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">GPIOA</td><td class="tcell">GPIOA中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">I2C1</td><td class="tcell">I2C1中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">I2C0</td><td class="tcell">I2C0中断使能<br>读读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">MCPWM中断IRQ1使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[6]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">MCPWM(IRQ0)</td><td class="tcell tcell-changed">MCPWM中断IRQ0使能<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[5]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">SPI1</td><td class="tcell tcell-changed">SPI1中断使能<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[4]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">SPI0</td><td class="tcell tcell-changed">SPI0中断使能<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[3]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">UART1</td><td class="tcell tcell-changed">UART1中断使能<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">UART0</td><td class="tcell">UART0中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">FLASH</td><td class="tcell">FLASH中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">AON</td><td class="tcell">AON低功耗唤醒中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:29]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[28]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">ANAC1</td><td class="tcell">模拟中断1使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">ANAC0</td><td class="tcell">模拟中断0使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">PLL_ERR</td><td class="tcell">PLL异常中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">TJ_OTW</td><td class="tcell">温度检测OTW中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">TJ_OTS</td><td class="tcell">温度检测OTS中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">CSA</td><td class="tcell">过流检测中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">PVD</td><td class="tcell">低电压检测中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">BOR</td><td class="tcell">上电复位中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">DMA</td><td class="tcell">DMA中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">QEP</td><td class="tcell">QEP编码器中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">HALL</td><td class="tcell">HALL编码器中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">ADC</td><td class="tcell">ADC中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">TIM16</td><td class="tcell">TIM16中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[15]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">TIM15</td><td class="tcell tcell-changed">TIM15中断使能<br>读：0：关闭<span class="ins"> </span>；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[14]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">TIM14</td><td class="tcell tcell-changed">TIM14中断使能<br>读：0：关闭<span class="ins"> </span>；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[13]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">TIM13</td><td class="tcell tcell-changed">TIM13中断使能<br>读：0：关闭<span class="ins"> </span>；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">GPIOC</td><td class="tcell">GPIOC中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">GPIOB</td><td class="tcell">GPIOB中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">GPIOA</td><td class="tcell">GPIOA中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">I2C1</td><td class="tcell">I2C1中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">I2C0</td><td class="tcell">I2C0中断使能<br>读读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">MCPWM中断IRQ1使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[6]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">MCPWM(IRQ0)</td><td class="tcell tcell-changed">MCPWM中断IRQ0使能<br>读：0：关闭<span class="ins"> </span>；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[5]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">SPI1</td><td class="tcell tcell-changed">SPI1中断使能<br>读：0：关闭<span class="ins"> </span>；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[4]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">SPI0</td><td class="tcell tcell-changed">SPI0中断使能<br>读：0：关闭<span class="ins"> </span>；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-modify"><td class="tcell tcell-changed">[3]</td><td class="tcell tcell-changed">R/W1</td><td class="tcell tcell-changed">0</td><td class="tcell tcell-changed">UART1</td><td class="tcell tcell-changed">UART1中断使能<br>读：0：关闭<span class="ins"> </span>；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">UART0</td><td class="tcell">UART0中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">FLASH</td><td class="tcell">FLASH中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W1</td><td class="tcell">0</td><td class="tcell">AON</td><td class="tcell">AON低功耗唤醒中断使能<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-10"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">10</span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-11"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">11</span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-12"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">12</span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-13"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">13</span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-14"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">14</span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-15"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">15</span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-16"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">16</span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>ICER寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">6.3.2 </span>ICER寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-17"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">17</span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0xE000E180 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1</span>地址：0xE000E180 </p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14；段落段落样式: 段落正文→正文1</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:29]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[28]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC1</td><td class="tcell">模拟中断1禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC0</td><td class="tcell">模拟中断0禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PLL_ERR</td><td class="tcell">PLL异常中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTW</td><td class="tcell">温度检测OTW中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTS</td><td class="tcell">温度检测OTS中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">CSA</td><td class="tcell">过流检测中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PVD</td><td class="tcell">低电压检测中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">BOR</td><td class="tcell">上电复位中断禁止<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">DMA</td><td class="tcell">DMA中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">QEP</td><td class="tcell">QEP编码器中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">HALL</td><td class="tcell">HALL编码器中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ADC</td><td class="tcell">ADC中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM16</td><td class="tcell">TIM16中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[15]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM15</td><td class="tcell">TIM15中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[14]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM14</td><td class="tcell">TIM14中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM13</td><td class="tcell">TIM13中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOC</td><td class="tcell">GPIOC中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOB</td><td class="tcell">GPIOB中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOA</td><td class="tcell">GPIOA中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C1</td><td class="tcell">I2C1中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C0</td><td class="tcell">I2C0中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">MCPWM中断IRQ1禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[6]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ0)</td><td class="tcell">MCPWM中断IRQ0禁止<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI1</td><td class="tcell">SPI1中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI0</td><td class="tcell">SPI0中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART1</td><td class="tcell">UART1中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART0</td><td class="tcell">UART0中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">FLASH</td><td class="tcell">FLASH中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">AON</td><td class="tcell">AON低功耗唤醒中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:29]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[28]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC1</td><td class="tcell">模拟中断1禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC0</td><td class="tcell">模拟中断0禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PLL_ERR</td><td class="tcell">PLL异常中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTW</td><td class="tcell">温度检测OTW中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTS</td><td class="tcell">温度检测OTS中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">CSA</td><td class="tcell">过流检测中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PVD</td><td class="tcell">低电压检测中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">BOR</td><td class="tcell">上电复位中断禁止<br>读：0：关闭 ；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">DMA</td><td class="tcell">DMA中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">QEP</td><td class="tcell">QEP编码器中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">HALL</td><td class="tcell">HALL编码器中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ADC</td><td class="tcell">ADC中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM16</td><td class="tcell">TIM16中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[15]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM15</td><td class="tcell">TIM15中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[14]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM14</td><td class="tcell">TIM14中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM13</td><td class="tcell">TIM13中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOC</td><td class="tcell">GPIOC中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOB</td><td class="tcell">GPIOB中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOA</td><td class="tcell">GPIOA中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C1</td><td class="tcell">I2C1中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C0</td><td class="tcell">I2C0中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">MCPWM中断IRQ1禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[6]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ0)</td><td class="tcell">MCPWM中断IRQ0禁止<br>读：0：关闭；1：使能<br>写：0：无效；1：使能</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI1</td><td class="tcell">SPI1中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI0</td><td class="tcell">SPI0中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART1</td><td class="tcell">UART1中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART0</td><td class="tcell">UART0中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">FLASH</td><td class="tcell">FLASH中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">AON</td><td class="tcell">AON低功耗唤醒中断禁止<br>读：0<br>写：0：无效；1：禁止</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-18"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">18</span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>ISPR寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">6.3.3 </span>ISPR寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-19"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">19</span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0xE000E200 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1</span>地址：0xE000E200 </p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14；段落段落样式: 段落正文→正文1</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:29]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[28]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC1</td><td class="tcell">模拟中断1挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC0</td><td class="tcell">模拟中断0挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PLL_ERR</td><td class="tcell">PLL异常中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTW</td><td class="tcell">温度检测OTW中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTS</td><td class="tcell">温度检测OTS中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">CSA</td><td class="tcell">过流检测中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PVD</td><td class="tcell">低电压检测中断禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">BOR</td><td class="tcell">上电复位中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">DMA</td><td class="tcell">DMA中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">QEP</td><td class="tcell">QEP编码器中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">HALL</td><td class="tcell">HALL编码器中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ADC</td><td class="tcell">ADC中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM16</td><td class="tcell">TIM16中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[15]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM15</td><td class="tcell">TIM15中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[14]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM14</td><td class="tcell">TIM14中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM13</td><td class="tcell">TIM13中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOC</td><td class="tcell">GPIOC中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOB</td><td class="tcell">GPIOB中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOA</td><td class="tcell">GPIOA中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C1</td><td class="tcell">I2C1中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C0</td><td class="tcell">I2C0中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">MCPWM中断IRQ1挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[6]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ0)</td><td class="tcell">MCPWM中断IRQ0挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI1</td><td class="tcell">SPI1中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI0</td><td class="tcell">SPI0中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART1</td><td class="tcell">UART1中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART0</td><td class="tcell">UART0中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">FLASH</td><td class="tcell">FLASH中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">AON</td><td class="tcell">AON低功耗唤醒中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:29]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[28]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC1</td><td class="tcell">模拟中断1挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ANAC0</td><td class="tcell">模拟中断0挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PLL_ERR</td><td class="tcell">PLL异常中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTW</td><td class="tcell">温度检测OTW中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TJ_OTS</td><td class="tcell">温度检测OTS中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">CSA</td><td class="tcell">过流检测中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">PVD</td><td class="tcell">低电压检测中断禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">BOR</td><td class="tcell">上电复位中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">DMA</td><td class="tcell">DMA中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">QEP</td><td class="tcell">QEP编码器中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">HALL</td><td class="tcell">HALL编码器中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">ADC</td><td class="tcell">ADC中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM16</td><td class="tcell">TIM16中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[15]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM15</td><td class="tcell">TIM15中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[14]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM14</td><td class="tcell">TIM14中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">TIM13</td><td class="tcell">TIM13中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOC</td><td class="tcell">GPIOC中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOB</td><td class="tcell">GPIOB中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">GPIOA</td><td class="tcell">GPIOA中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C1</td><td class="tcell">I2C1中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">I2C0</td><td class="tcell">I2C0中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ1)</td><td class="tcell">MCPWM中断IRQ1挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[6]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">MCPWM(IRQ0)</td><td class="tcell">MCPWM中断IRQ0挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI1</td><td class="tcell">SPI1中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">SPI0</td><td class="tcell">SPI0中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART1</td><td class="tcell">UART1中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">UART0</td><td class="tcell">UART0中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">FLASH</td><td class="tcell">FLASH中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">W1</td><td class="tcell">0</td><td class="tcell">AON</td><td class="tcell">AON低功耗唤醒中断挂起禁止<br>读：0<br>写：0：无效；1：挂起禁止</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-left">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-left">&nbsp;</p></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>

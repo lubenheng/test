@@ -1,0 +1,1214 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>7_系统控制_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>07_系统控制_20261030.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>98.3%</b></span>
+    <span class="chip ins">新增 <b>3</b></span>
+    <span class="chip del">删除 <b>0</b></span>
+    <span class="chip mod">修改 <b>0</b></span>
+    <span class="chip">格式变更 <b>0</b></span>
+    <span class="chip">表格变更 <b>0</b></span>
+    <span class="chip">共 <b>3</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 3</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>7_系统控制_20261031.docx（基准）</div>
+  <div>07_系统控制_20261030.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>系统控制</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题1</span>系统控制</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>概述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span>概述</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>系统控制主要包括：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>系统控制主要包括：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>系统硬件状态查询</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>系统硬件状态查询</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>UUID信息查询</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>UUID信息查询</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>低功耗模式配置</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>低功耗模式配置</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>版本查询</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>版本查询</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>状态查询</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span>状态查询</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>为了方便产品追踪和管理，芯片在制造过程中，会将特有信息写入到FLASH的指定区域。芯片在上电的过程中，会将将该区域内的数据读出并映射到系统控制中相就的寄存器组中，随时可读查询。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>为了方便产品追踪和管理，芯片在制造过程中，会将特有信息写入到FLASH的指定区域。芯片在上电的过程中，会将将该区域内的数据读出并映射到系统控制中相就的寄存器组中，随时可读查询。</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>查询封装信息，（GPIO的使用）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>查询封装信息，（GPIO的使用）</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>查询唯一标识码UUID(128位）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>查询唯一标识码UUID(128位）</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>查询硬件规格(FLASH大小，SRAM大小)</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>查询硬件规格(FLASH大小，SRAM大小)</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片保护状态</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片保护状态</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片加工状态</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片加工状态</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片功能状态</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片功能状态</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片版本</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>查询芯片版本</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><br></p></div>
+    <div class="cell right"><p class="para align-left"><br></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>低功耗模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span>低功耗模式</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>芯片工作模式主要有：正常模式、睡眠模式、深度睡眠模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>芯片工作模式主要有：正常模式、睡眠模式、深度睡眠模式</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>使用ARM的WFI指令使芯片进入到睡眠模式和深度睡眠模式，由系统控制寄存器SCR中的SLEEPDEEP位来区分两种睡眠模式。可参考系统控制寄存器(SCR)说明</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>使用ARM的WFI指令使芯片进入到睡眠模式和深度睡眠模式，由系统控制寄存器SCR中的SLEEPDEEP位来区分两种睡眠模式。可参考系统控制寄存器(SCR)说明</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>进入睡眠模式后，只支持GPIO唤醒和LPTMR唤醒</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>进入睡眠模式后，只支持GPIO唤醒和LPTMR唤醒</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>注：两种睡眠模式的区别，深度睡眠采用了大部分模块掉电形式来降低功耗</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>注：两种睡眠模式的区别，深度睡眠采用了大部分模块掉电形式来降低功耗</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>低功耗架构</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>低功耗架构</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-center">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-center">&nbsp;</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>25</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图7-1低功耗架构示意图</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图7-1低功耗架构示意图</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>26</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>执行WFI后，CortexM0+内核输出SLEEPING和DEEPSLEEP两个指示信号，控制部分PMU当检测到两个信号状态，控制LDO及ISO状态，由于D深度睡眠模式有掉电部分，芯片内部有掉电部分的信号输出到非掉电部分的电路中时，必须要有隔离单元ISO，进入深度睡眠后，先使能隔离单元ISO，之后PMU关掉LDO供电，只有AON部分存在供电，当GPIO输入有效唤醒信号或LPTMR达到配置中的阈值后，即可唤醒，输出AON_IRQQ中断，软件可根据中断信号AON_IRQ，来判定唤醒过程</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>执行WFI后，CortexM0+内核输出SLEEPING和DEEPSLEEP两个指示信号，控制部分PMU当检测到两个信号状态，控制LDO及ISO状态，由于D深度睡眠模式有掉电部分，芯片内部有掉电部分的信号输出到非掉电部分的电路中时，必须要有隔离单元ISO，进入深度睡眠后，先使能隔离单元ISO，之后PMU关掉LDO供电，只有AON部分存在供电，当GPIO输入有效唤醒信号或LPTMR达到配置中的阈值后，即可唤醒，输出AON_IRQQ中断，软件可根据中断信号AON_IRQ，来判定唤醒过程</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>27</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>PMU控制</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>PMU控制</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>28</span>
+    </div>
+    <div class="cell left"><p class="para align-center">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-center">&nbsp;</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>29</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图7-2PMU控制示意图</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图7-2PMU控制示意图</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>30</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>低功耗模式及唤醒机制主要控制部分即是PMU,即电源管理单元，其主要部分是由状态机来控制模拟相应时序，控制功耗机制中的上电，唤醒，工作，隔离，掉电过程的相关控制</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>低功耗模式及唤醒机制主要控制部分即是PMU,即电源管理单元，其主要部分是由状态机来控制模拟相应时序，控制功耗机制中的上电，唤醒，工作，隔离，掉电过程的相关控制</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>31</span>
+    </div>
+    <div class="cell left"><p class="para align-center">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-center">&nbsp;</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>32</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图7-3低功耗模式流程图</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图7-3低功耗模式流程图</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>33</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器列表</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span>寄存器列表</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>34</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">地址</td><td class="tcell">寄存器</td><td class="tcell">复位值</td><td class="tcell">描述</td><td class="tcell">备注</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0400</td><td class="tcell">UUID0</td><td class="tcell">0x0</td><td class="tcell">UUID[31:0]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0404</td><td class="tcell">UUID1</td><td class="tcell">0x0</td><td class="tcell">UUID[63:32]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0408</td><td class="tcell">UUID2</td><td class="tcell">0x0</td><td class="tcell">UUID[95:64]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 040C</td><td class="tcell">UUID3</td><td class="tcell">0x0</td><td class="tcell">UUID[127:96]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0410</td><td class="tcell">USER0</td><td class="tcell">0x0</td><td class="tcell">USER0</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0414</td><td class="tcell">USER1</td><td class="tcell">0x0</td><td class="tcell">USER1</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0418</td><td class="tcell">USER2</td><td class="tcell">0x0</td><td class="tcell">USER2</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 041C</td><td class="tcell">USER3</td><td class="tcell">0x0</td><td class="tcell">USER3</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0420</td><td class="tcell">TAG</td><td class="tcell">0x0</td><td class="tcell">生产过程记录状态寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0424</td><td class="tcell">FSIZE</td><td class="tcell">0x0</td><td class="tcell">FLASH规格查询寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0428</td><td class="tcell">RSIZE</td><td class="tcell">0x0</td><td class="tcell">SRAM规格查询寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 042C</td><td class="tcell">GPIOE0</td><td class="tcell">0x0</td><td class="tcell">GPIOA/B组管脚状态查询</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0430</td><td class="tcell">GPIOE1</td><td class="tcell">0x0</td><td class="tcell">GPIOC组管脚状态查询</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0440</td><td class="tcell">USER4</td><td class="tcell">0x0</td><td class="tcell">USER4</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0444</td><td class="tcell">USER5</td><td class="tcell">0x0</td><td class="tcell">USER5</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0500</td><td class="tcell">WAKEIR</td><td class="tcell">0x0</td><td class="tcell">低功耗唤醒中断状态寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0504</td><td class="tcell">WAKECR</td><td class="tcell">0x0</td><td class="tcell">低功耗控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0508</td><td class="tcell">LPTMRTH</td><td class="tcell">0x400</td><td class="tcell">低功耗唤醒TMR阈值设置寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 050C</td><td class="tcell">INTERVAL</td><td class="tcell">0x0</td><td class="tcell">低功耗唤醒控制信号时序控制</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 07F8</td><td class="tcell">VERID</td><td class="tcell">0x0</td><td class="tcell">芯片版本状态查询</td><td class="tcell">&nbsp;</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">地址</td><td class="tcell">寄存器</td><td class="tcell">复位值</td><td class="tcell">描述</td><td class="tcell">备注</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0400</td><td class="tcell">UUID0</td><td class="tcell">0x0</td><td class="tcell">UUID[31:0]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0404</td><td class="tcell">UUID1</td><td class="tcell">0x0</td><td class="tcell">UUID[63:32]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0408</td><td class="tcell">UUID2</td><td class="tcell">0x0</td><td class="tcell">UUID[95:64]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 040C</td><td class="tcell">UUID3</td><td class="tcell">0x0</td><td class="tcell">UUID[127:96]</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0410</td><td class="tcell">USER0</td><td class="tcell">0x0</td><td class="tcell">USER0</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0414</td><td class="tcell">USER1</td><td class="tcell">0x0</td><td class="tcell">USER1</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0418</td><td class="tcell">USER2</td><td class="tcell">0x0</td><td class="tcell">USER2</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 041C</td><td class="tcell">USER3</td><td class="tcell">0x0</td><td class="tcell">USER3</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0420</td><td class="tcell">TAG</td><td class="tcell">0x0</td><td class="tcell">生产过程记录状态寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0424</td><td class="tcell">FSIZE</td><td class="tcell">0x0</td><td class="tcell">FLASH规格查询寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0428</td><td class="tcell">RSIZE</td><td class="tcell">0x0</td><td class="tcell">SRAM规格查询寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 042C</td><td class="tcell">GPIOE0</td><td class="tcell">0x0</td><td class="tcell">GPIOA/B组管脚状态查询</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0430</td><td class="tcell">GPIOE1</td><td class="tcell">0x0</td><td class="tcell">GPIOC组管脚状态查询</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0440</td><td class="tcell">USER4</td><td class="tcell">0x0</td><td class="tcell">USER4</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0444</td><td class="tcell">USER5</td><td class="tcell">0x0</td><td class="tcell">USER5</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0500</td><td class="tcell">WAKEIR</td><td class="tcell">0x0</td><td class="tcell">低功耗唤醒中断状态寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0504</td><td class="tcell">WAKECR</td><td class="tcell">0x0</td><td class="tcell">低功耗控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 0508</td><td class="tcell">LPTMRTH</td><td class="tcell">0x400</td><td class="tcell">低功耗唤醒TMR阈值设置寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 050C</td><td class="tcell">INTERVAL</td><td class="tcell">0x0</td><td class="tcell">低功耗唤醒控制信号时序控制</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4002 07F8</td><td class="tcell">VERID</td><td class="tcell">0x0</td><td class="tcell">芯片版本状态查询</td><td class="tcell">&nbsp;</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>35</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>36</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>37</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>38</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span>寄存器描述</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>39</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>UUID寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>UUID寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>40</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020400 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020400 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>41</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[31:0]</td><td class="tcell">UUID</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[31:0]</td><td class="tcell">UUID</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>42</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020404 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020404 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>43</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[63:32]</td><td class="tcell">UUID</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[63:32]</td><td class="tcell">UUID</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>44</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020408 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020408 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>45</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[95:64]</td><td class="tcell">UUID</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[95:64]</td><td class="tcell">UUID</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>46</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x4002040C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x4002040C</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>47</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[127:96]</td><td class="tcell">UUID</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">UUID[127:96]</td><td class="tcell">UUID</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>48</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>USER寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>USER寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>49</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020410 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020410 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>50</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER0</td><td class="tcell">--</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER0</td><td class="tcell">--</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>51</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020414 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020414 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>52</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER1</td><td class="tcell">--</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER1</td><td class="tcell">--</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>53</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020418 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020418 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>54</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER2</td><td class="tcell">--</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER2</td><td class="tcell">--</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>55</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x4002041C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x4002041C</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>56</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER3</td><td class="tcell">--</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER3</td><td class="tcell">--</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>57</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020440 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020440 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>58</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER4</td><td class="tcell">--</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER4</td><td class="tcell">--</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>59</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020444 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020444 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>60</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER5</td><td class="tcell">--</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">USER5</td><td class="tcell">--</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>61</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>TAG寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>TAG寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>62</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020420</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址：0x40020420</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>63</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:11]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">DISRSTN</td><td class="tcell">GPIOB1禁用RSTN功能复用</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">PROTECT2</td><td class="tcell">芯片LEVEL2加密级别</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">PROTECT1</td><td class="tcell">芯片LEVEL1加密级别</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">RRAM_CPLOCK</td><td class="tcell">芯片RRAM 存储器的CP测试接口禁用</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">CHIPINFO_TAG</td><td class="tcell">芯片已加载芯片规格信息标志位</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG3</td><td class="tcell">芯片已加载第4组模拟TRIM值用于校准</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG2</td><td class="tcell">芯片已加载第3组模拟TRIM值用于校准</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG1</td><td class="tcell">芯片已加载第2组模拟TRIM值用于校准</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG0</td><td class="tcell">芯片已加载第1组模拟TRIM值用于校准</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:11]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">DISRSTN</td><td class="tcell">GPIOB1禁用RSTN功能复用</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">PROTECT2</td><td class="tcell">芯片LEVEL2加密级别</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">PROTECT1</td><td class="tcell">芯片LEVEL1加密级别</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">RRAM_CPLOCK</td><td class="tcell">芯片RRAM 存储器的CP测试接口禁用</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">CHIPINFO_TAG</td><td class="tcell">芯片已加载芯片规格信息标志位</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG3</td><td class="tcell">芯片已加载第4组模拟TRIM值用于校准</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG2</td><td class="tcell">芯片已加载第3组模拟TRIM值用于校准</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG1</td><td class="tcell">芯片已加载第2组模拟TRIM值用于校准</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TRIM_TAG0</td><td class="tcell">芯片已加载第1组模拟TRIM值用于校准</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>64</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>FSIZE寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>FSIZE寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>65</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x40020424 </p></div>
+    <div class="cell right"><p class="para align-left">地址：0x40020424 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>66</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:26]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[25:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">FLASH_SIZE</td><td class="tcell">指示FLASH容量规格，单位1KB<br>注：最大可支持128KB-32Byte</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:26]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[25:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">FLASH_SIZE</td><td class="tcell">指示FLASH容量规格，单位1KB<br>注：最大可支持128KB-32Byte</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>67</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>RSIZE寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>RSIZE寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>68</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x40020428</p></div>
+    <div class="cell right"><p class="para align-left">地址：0x40020428</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>69</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">SRAM_SIZE</td><td class="tcell">指示FLASH容量规格，单位1KB<br>注：最大可支持16KB</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">SRAM_SIZE</td><td class="tcell">指示FLASH容量规格，单位1KB<br>注：最大可支持16KB</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>70</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>GPIOE0寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>GPIOE0寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>71</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x4002042C </p></div>
+    <div class="cell right"><p class="para align-left">地址：0x4002042C </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>72</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">GPIOBE</td><td class="tcell">指示GPIOA组的使能状态</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">GPIOAE</td><td class="tcell">指示GPIOB组的使能状态</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">GPIOBE</td><td class="tcell">指示GPIOA组的使能状态</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">GPIOAE</td><td class="tcell">指示GPIOB组的使能状态</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>73</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>GPIOE1寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>GPIOE1寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>74</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x40020430</p></div>
+    <div class="cell right"><p class="para align-left">地址：0x40020430</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>75</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">DISCODE</td><td class="tcell">查询DISRSTN密钥<br>当DISCODE为5AA5时，DISRSTN状态位会置1</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">GPIOCE</td><td class="tcell">指示GPIOC组的使能状态</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">DISCODE</td><td class="tcell">查询DISRSTN密钥<br>当DISCODE为5AA5时，DISRSTN状态位会置1</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">GPIOCE</td><td class="tcell">指示GPIOC组的使能状态</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>76</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>WAKEIR寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>WAKEIR寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>77</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x40020500</p></div>
+    <div class="cell right"><p class="para align-left">地址：0x40020500</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>78</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W1C</td><td class="tcell">0</td><td class="tcell">RSTN_WAKEUP</td><td class="tcell">RSTN复位低功耗唤醒标志位</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W1C</td><td class="tcell">0</td><td class="tcell">GPIO_WAKEUP</td><td class="tcell">GPIO低功耗唤醒标志位</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W1C</td><td class="tcell">0</td><td class="tcell">LPTMR_WAKEUP</td><td class="tcell">LPTRM低功耗唤醒标志位</td></tr><tr class="trow-equal"><td class="tcell">[15:3]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RSTN_IE</td><td class="tcell">RSTN低功耗唤醒中断使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IE</td><td class="tcell">GPIO低功耗唤醒中断使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">LPTMR_IE</td><td class="tcell">LPTMR低功耗唤醒中断使能</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W1C</td><td class="tcell">0</td><td class="tcell">RSTN_WAKEUP</td><td class="tcell">RSTN复位低功耗唤醒标志位</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W1C</td><td class="tcell">0</td><td class="tcell">GPIO_WAKEUP</td><td class="tcell">GPIO低功耗唤醒标志位</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W1C</td><td class="tcell">0</td><td class="tcell">LPTMR_WAKEUP</td><td class="tcell">LPTRM低功耗唤醒标志位</td></tr><tr class="trow-equal"><td class="tcell">[15:3]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RSTN_IE</td><td class="tcell">RSTN低功耗唤醒中断使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IE</td><td class="tcell">GPIO低功耗唤醒中断使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">LPTMR_IE</td><td class="tcell">LPTMR低功耗唤醒中断使能</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>79</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>WAKECR寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>WAKECR寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>80</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x40020504</p></div>
+    <div class="cell right"><p class="para align-left">地址：0x40020504</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>81</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:28]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN11_POL</td><td class="tcell">PC4用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN10_POL</td><td class="tcell">PC3用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN9_POL</td><td class="tcell">PB13用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN8_POL</td><td class="tcell">PB12用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN7_POL</td><td class="tcell">PB5用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN6_POL</td><td class="tcell">PB4用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN5_POL</td><td class="tcell">PB3用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN4_POL</td><td class="tcell">PB2用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN3_POL</td><td class="tcell">PA14用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN2_POL</td><td class="tcell">PA13用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN1_POL</td><td class="tcell">PA4用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN0_POL</td><td class="tcell">PA3用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[15:13]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">LPTMR_EN</td><td class="tcell">LPTMR用于低功耗唤醒计数器使能</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN11_EN</td><td class="tcell">PC4用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN10_EN</td><td class="tcell">PC3用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN9_EN</td><td class="tcell">PB13用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN8_EN</td><td class="tcell">PB12用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN7_EN</td><td class="tcell">PB5用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[6]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN6_EN</td><td class="tcell">PB4用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN5_EN</td><td class="tcell">PB3用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN4_EN</td><td class="tcell">PB2用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN3_EN</td><td class="tcell">PA14用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN2_EN</td><td class="tcell">PA13用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN1_EN</td><td class="tcell">PA4用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN0_EN</td><td class="tcell">PA3用于低功耗唤醒的使能</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:28]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[27]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN11_POL</td><td class="tcell">PC4用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[26]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN10_POL</td><td class="tcell">PC3用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[25]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN9_POL</td><td class="tcell">PB13用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[24]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN8_POL</td><td class="tcell">PB12用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN7_POL</td><td class="tcell">PB5用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[22]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN6_POL</td><td class="tcell">PB4用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN5_POL</td><td class="tcell">PB3用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN4_POL</td><td class="tcell">PB2用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN3_POL</td><td class="tcell">PA14用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN2_POL</td><td class="tcell">PA13用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN1_POL</td><td class="tcell">PA4用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN0_POL</td><td class="tcell">PA3用于低功耗唤醒的极性配置</td></tr><tr class="trow-equal"><td class="tcell">[15:13]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">LPTMR_EN</td><td class="tcell">LPTMR用于低功耗唤醒计数器使能</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN11_EN</td><td class="tcell">PC4用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN10_EN</td><td class="tcell">PC3用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN9_EN</td><td class="tcell">PB13用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN8_EN</td><td class="tcell">PB12用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN7_EN</td><td class="tcell">PB5用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[6]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN6_EN</td><td class="tcell">PB4用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN5_EN</td><td class="tcell">PB3用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN4_EN</td><td class="tcell">PB2用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN3_EN</td><td class="tcell">PA14用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN2_EN</td><td class="tcell">PA13用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN1_EN</td><td class="tcell">PA4用于低功耗唤醒的使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">GPIO_IN0_EN</td><td class="tcell">PA3用于低功耗唤醒的使能</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>82</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>LPTMRTH寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>LPTMRTH寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>83</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x40020508</p></div>
+    <div class="cell right"><p class="para align-left">地址：0x40020508 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>84</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">LPTMRTH</td><td class="tcell">低功耗计数器阈值配置</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">LPTMRTH</td><td class="tcell">低功耗计数器阈值配置</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>85</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>INTERVAL寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>INTERVAL寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>86</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x4002050C </p></div>
+    <div class="cell right"><p class="para align-left">地址：0x4002050C </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>87</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:6]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R</td><td class="tcell">0x14</td><td class="tcell">INTERVAL</td><td class="tcell">配置低功耗控制信号等待时间</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:6]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R</td><td class="tcell">0x14</td><td class="tcell">INTERVAL</td><td class="tcell">配置低功耗控制信号等待时间</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>88</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>VERID寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span>VERID寄存器</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>89</span>
+    </div>
+    <div class="cell left"><p class="para align-left">地址：0x400207F8 </p></div>
+    <div class="cell right"><p class="para align-left">地址：0x400207F8 </p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>90</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:4]</td><td class="tcell">R</td><td class="tcell">0xBD01</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">RO_VER_CODE</td><td class="tcell">芯片版本号</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:4]</td><td class="tcell">R</td><td class="tcell">0xBD01</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">RO_VER_CODE</td><td class="tcell">芯片版本号</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>91</span>
+    </div>
+    <div class="cell left"><p class="para align-left">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-left">&nbsp;</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>92</span>
+    </div>
+    <div class="cell left"><p class="para align-left">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-left">&nbsp;</p></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>

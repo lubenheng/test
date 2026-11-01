@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>13_HALL_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>13_HALL_20261023.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>94.1%</b></span>
+    <span class="chip ins">新增 <b>5</b></span>
+    <span class="chip del">删除 <b>4</b></span>
+    <span class="chip mod">修改 <b>61</b></span>
+    <span class="chip">格式变更 <b>84</b></span>
+    <span class="chip">表格变更 <b>1</b></span>
+    <span class="chip">共 <b>70</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 70</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>13_HALL_20261031.docx（基准）</div>
+  <div>13_HALL_20261023.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-modify changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>HALL</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题1</span><span class="num">13 </span>HALL</p><div class="fmt">格式变更：文字加粗: 关→开 ×4；文字下划线: 继承→关 ×4；文字字体: 黑体→Times New Roman ×4；文字颜色: 继承→0000FF ×4；段落编号层级: 继承→0</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>概述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">13.1 </span>概述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；文字字号: 14 磅→15 磅 ×2；文字颜色: 000000→继承 ×2；段落段落样式: 标题3→标题2；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>芯片共支持3路HALL信号输入。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>芯片共支持3路HALL信号输入。<span class="ins"> </span></p><div class="fmt">格式变更：文字颜色: 000000→继承 ×16</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-4"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">4</span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>对于输入的HALL传感器信号，所进行的处理包括:</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>对于输入的HALL传感器信号，所进行的处理包括:<span class="ins"> </span></p><div class="fmt">格式变更：文字颜色: 000000→继承 ×24</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-5"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">5</span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>滤波，消除HALL信号毛刺的影响</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>滤波，消除HALL信号毛刺的影响<span class="ins"> </span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-6"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">6</span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>捕获，HALL输入有变化时，记录当前的定时器值，并输出中断</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>捕获，HALL输入有变化时，记录当前的定时器值，并输出中断<span class="ins"> </span></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span>溢出，HALL信号长时间不发生变化导致计数器溢出，并输出中断</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span>溢出，HALL信号长时间不发生变化导致计数器溢出，并输出中断</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-7"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">7</span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>实现说明</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">13.2 </span>实现说明</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-8"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">8</span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>信号来源</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.2.1 </span>信号来源</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-9"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">9</span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 信号来源于GPIO，对于每一路HALL 信号，芯片有两个IO 可以作为该信号的来源。通 过配置GPIO寄存器，用户可以选择将其中一个GPIO的输入信号做为HALL信号使用。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 信号来源于GPIO，对于每一路HALL 信号，芯片有两个IO 可以作为该信号的来源。通 过配置GPIO寄存器，用户可以选择将其中一个GPIO的输入信号做为HALL信号使用。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×91</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-10"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">10</span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>详细管脚位置说明见芯片器件datasheet。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>详细管脚位置说明见芯片器件datasheet。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×23</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-11"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">11</span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>工作时钟</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.2.2 </span>工作时钟</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-12"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">12</span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 模块工作频率可调。通过配置 HALL_CFG.CLK_DIV 寄存器，可以选择系统主时钟的 1/2/4/8 分频作为HALL 模块工作频率，滤波和计数均采用该频率工作。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 模块工作频率可调。通过配置 HALL_CFG.CLK_DIV 寄存器，可以选择系统主时钟的 1/2/4/8 分频作为HALL 模块工作频率，滤波和计数均采用该频率工作。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×89</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-13"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">13</span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>信号滤波</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.2.3 </span>信号滤波</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-14"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">14</span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>滤波模块主要用于去除HALL信号上的毛刺。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>滤波模块主要用于去除HALL信号上的毛刺。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×21</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-15"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">15</span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>滤波包括两级滤波器，两级滤波电路可单独开启，也可全部开启:</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>滤波包括两级滤波器，两级滤波电路可单独开启，也可全部开启:</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×29</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-16"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">16</span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>第一级采用7判5进行滤波，即连续7个采样点中，如果达到或超过5个1则输出1，如果 达到或超过5个0则输出0，否则输出保持上一次的滤波结果。通过配置HALL_CFG.FIL_75可以选 择是否使能第一级滤波器。具体如下图所示:</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>第一级采用7判5进行滤波，即连续7个采样点中，如果达到或超过5个1则输出1，如果 达到或超过5个0则输出0，否则输出保持上一次的滤波结果。通过配置HALL_CFG.FIL_75可以选 择是否使能第一级滤波器。具体如下图所示:</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×112</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-17"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">17</span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"><br></span></p><div class="fmt">格式变更：段落对齐方式: center→继承</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-18"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">18</span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图13-1 7/5滤波模块框图</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图13-1 7/5滤波模块框图</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-19"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">19</span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>第二级采用连续滤波，在连续N个采样点中，如全为0则输出0，如全为1则输出1，否则输 出保持上一次的滤波结果。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>第二级采用连续滤波，在连续N个采样点中，如全为0则输出0，如全为1则输出1，否则输 出保持上一次的滤波结果。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×54</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-20"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">20</span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>通过配置HALL_CFG.FIL_LEN可以配置第二级滤波器滤波深度，即连续采样个数。连续采样个 数最大为215，滤波时间常数计算公式如下:</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>通过配置HALL_CFG.FIL_LEN可以配置第二级滤波器滤波深度，即连续采样个数。连续采样个 数最大为215，滤波时间常数计算公式如下:</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×70</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-21"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">21</span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>Tfilter = Tclk * (HALL_CFG.FIL_LEN[14:0] + 1)</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>Tfilter = Tclk * (HALL_CFG.FIL_LEN[14:0] + 1)</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×45</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-22"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">22</span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>举例，在96MHz工作频率下，周期Tclk是10.42ns，寄存器配置最大为32767，最长滤波宽度 为约10.42ns×32768≈340us。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>举例，在96MHz工作频率下，周期Tclk是10.42ns，寄存器配置最大为32767，最长滤波宽度 为约10.42ns×32768≈340us。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×73</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-23"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">23</span>
+      <span>25</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>通过访问HALL_INFO.FIL_DATA[2:0]可以捕捉滤波后的HALL信号；HALL_INFO.RAW_DATA[2:0] 则是滤波前原始HALL输入信号。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>通过访问HALL_INFO.FIL_DATA[2:0]可以捕捉滤波后的HALL信号；HALL_INFO.RAW_DATA[2:0] 则是滤波前原始HALL输入信号。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×82</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-24"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">24</span>
+      <span>26</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>捕获</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.2.4 </span>捕获</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-25"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">25</span>
+      <span>27</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>捕获模块用于测量两次HALL信号变化之间的时间，其核心为一个24位计数器，在96MHz工 作频率下，如果通过HALL_CFG.CLK_DIV=3设置Hall时钟8分频，则最大可以记录约 2^24*8/96e6=1. 4s的时间宽度，达到10.42ns的时间分辨率。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>捕获模块用于测量两次HALL信号变化之间的时间，其核心为一个24位计数器，在96MHz工 作频率下，如果通过HALL_CFG.CLK_DIV=3设置Hall时钟8分频，则最大可以记录约 2^24*8/96e6=1. 4s的时间宽度，达到10.42ns的时间分辨率。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×132</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-26"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">26</span>
+      <span>28</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>HALL_CNT从0开始计数，当发生HALL信号变化时，将此时刻的HALL_CNT值保存到 HALL_WIDTH寄存器，将此时刻的HALL信号保存到HALL_INFO.FIL_DATA，输出HALL信号变化 中断，HALL_CNT重新从0开始计数。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>HALL_CNT从0开始计数，当发生HALL信号变化时，将此时刻的HALL_CNT值保存到 HALL_WIDTH寄存器，将此时刻的HALL信号保存到HALL_INFO.FIL_DATA，输出HALL信号变化 中断，HALL_CNT重新从0开始计数。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×124</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-27"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">27</span>
+      <span>29</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>当计数器计数值达到HALL_TH时，输出HALL计数器溢出中断，计数器重新从0开始计数。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>当计数器计数值达到HALL_TH时，输出HALL计数器溢出中断，计数器重新从0开始计数。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×44</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-28"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">28</span>
+      <span>30</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"><br></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-29"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">29</span>
+      <span>31</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>中断</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.2.5 </span>中断</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-30"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">30</span>
+      <span>32</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>捕获、溢出事件触发中断，中断使能控制位位于HALL_CFG.CHG_IE和HALL_CFG.OV_IE，中断 标志位位于HALL_INFO.CHG_IF和HALL_INFO.OV_IF。终端标志可以通过对HALL_INFO.CHG_IF和 HALL_INFO.OV_IF写1清空。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>捕获、溢出事件触发中断，中断使能控制位位于HALL_CFG.CHG_IE和HALL_CFG.OV_IE，中断 标志位位于HALL_INFO.CHG_IF和HALL_INFO.OV_IF。终端标志可以通过对HALL_INFO.CHG_IF和 HALL_INFO.OV_IF写1清空。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×140</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-31"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">31</span>
+      <span>33</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 中断事件可以作为DMA请求，但需要在HALL_CFG中使能CHG_RE，OV_RE或SW_RE。 当DMA收到传输请求开始数据搬运后，会将中断标志清除，不再需要软件清除。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 中断事件可以作为DMA请求，但需要在HALL_CFG中使能CHG_RE，OV_RE或SW_RE。 当DMA收到传输请求开始数据搬运后，会将中断标志清除，不再需要软件清除。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×90</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-32"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">32</span>
+      <span>34</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>数据流程</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.2.6 </span>数据流程</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-33"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">33</span>
+      <span>35</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>HALL模块的数据流程如下图所示，FCLK 为受 SYS_CLK_FEN.HALL_CLK_EN 门控信号控制的 HALL 时钟，开通后为96MHz的PLL时钟。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>HALL模块的数据流程如下图所示，FCLK 为受 SYS_CLK_FEN.HALL_CLK_EN 门控信号控制的 HALL 时钟，开通后为96MHz的PLL时钟。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×81</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-34"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">34</span>
+      <span>36</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span></p><div class="fmt">格式变更：段落对齐方式: center→继承；段落段落样式: Normal→图注</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>37</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图13-2 数据流程框图</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图13-2 数据流程框图</p></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-35"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">35</span>
+      <span>38</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"><br></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-36"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">36</span>
+      <span>39</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器列表</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">13.3 </span>寄存器列表</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-37"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">37</span>
+      <span>40</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 模块寄存器的基地址是0x4000_6400，寄存器列表如下:</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>HALL 模块寄存器的基地址是0x4000_6400，寄存器列表如下:</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×35</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-38"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">38</span>
+      <span>41</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span><span class="ins">表13-1 HALL 模块寄存器地址分配</span></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>42</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">HALL_IR</td><td class="tcell">0x04</td><td class="tcell">HALL 中断标志寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_IE</td><td class="tcell">0x08</td><td class="tcell">HALL 中断使能寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_CFG</td><td class="tcell">0x0C</td><td class="tcell">HALL 模块配置寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_TH</td><td class="tcell">0x10</td><td class="tcell">HALL 门限值寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_CNT</td><td class="tcell">0x14</td><td class="tcell">HALL 计数寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_CCR</td><td class="tcell">0x18</td><td class="tcell">HALL 捕获值寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_INFO</td><td class="tcell">0x1C</td><td class="tcell">HALL 模块信息寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_LOCK</td><td class="tcell">0x20</td><td class="tcell">HALL 解锁寄存器</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">HALL_IR</td><td class="tcell">0x04</td><td class="tcell">HALL 中断标志寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_IE</td><td class="tcell">0x08</td><td class="tcell">HALL 中断使能寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_CFG</td><td class="tcell">0x0C</td><td class="tcell">HALL 模块配置寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_TH</td><td class="tcell">0x10</td><td class="tcell">HALL 门限值寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_CNT</td><td class="tcell">0x14</td><td class="tcell">HALL 计数寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_CCR</td><td class="tcell">0x18</td><td class="tcell">HALL 捕获值寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_INFO</td><td class="tcell">0x1C</td><td class="tcell">HALL 模块信息寄存器</td></tr><tr class="trow-equal"><td class="tcell">HALL_LOCK</td><td class="tcell">0x20</td><td class="tcell">HALL 解锁寄存器</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-39"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">39</span>
+      <span>43</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-40"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">40</span>
+      <span>44</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-41"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">41</span>
+      <span>45</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-42"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">42</span>
+      <span>46</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">13.4 </span>寄存器描述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-43"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">43</span>
+      <span>47</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>HALL_IR   HALL中断标志寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.1 </span>HALL_IR   HALL中断标志寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×21；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-44"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">44</span>
+      <span>48</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6404</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6404</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-45"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">45</span>
+      <span>49</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>50</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">SW_IF</td><td class="tcell">软件触发HALL信号变化中断。HALL_CFG bit[3]写1触发，该位写1清零。</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">OV_IF</td><td class="tcell">HALL计数器溢出事件标志，写1清零</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">CHG_IF</td><td class="tcell">HALL信号变化事件标志，写1清零</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">SW_IF</td><td class="tcell">软件触发HALL信号变化中断。HALL_CFG bit[3]写1触发，该位写1清零。</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">OV_IF</td><td class="tcell">HALL计数器溢出事件标志，写1清零</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">CHG_IF</td><td class="tcell">HALL信号变化事件标志，写1清零</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-46"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">46</span>
+      <span>51</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>HALL_IR   HALL中断使能寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.2 </span>HALL_IR   HALL中断使能寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×21；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-47"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">47</span>
+      <span>52</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6408</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6408</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-48"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">48</span>
+      <span>53</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-49"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">49</span>
+      <span>54</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-modify"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SW_IE</td><td class="tcell tcell-changed"><span class="del">软件触发HALL信号变化中断使能，高电平有效。</span>当SW_IE=1时，软 件向HALL_CFG.SW_IF写1，可以手动产生HALL信号变化中断，并 令HALL_IR.SW_IF置位。</td></tr><tr class="trow-modify"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">OV_IE</td><td class="tcell tcell-changed">HALL计数器溢出中断使能开关。默认关闭。 <span class="del">0: 关闭 1: 使能</span></td></tr><tr class="trow-modify"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CHG_IE</td><td class="tcell tcell-changed">HALL信号变化中断使能开关。默认关闭。<span class="del"> 0: 关闭 1: 使能</span></td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-modify"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SW_IE</td><td class="tcell tcell-changed"><span class="ins">软件触发HALL信号变化中断使能，高电平有效。</span><br>当SW_IE=1时，软 件向HALL_CFG.SW_IF写1，可以手动产生HALL信号变化中断，并 令HALL_IR.SW_IF置位。</td></tr><tr class="trow-modify"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">OV_IE</td><td class="tcell tcell-changed">HALL计数器溢出中断使能开关。默认关闭。 <br><span class="ins">0: 关闭 </span><br><span class="ins">1: 使能</span></td></tr><tr class="trow-modify"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CHG_IE</td><td class="tcell tcell-changed">HALL信号变化中断使能开关。默认关闭。<br><span class="ins">0: 关闭 </span><br><span class="ins">1: 使能</span></td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-50"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">50</span>
+      <span>55</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span><span class="del"> </span>HALL_CFG   HALL模块配置寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.3 </span>HALL_CFG   HALL模块配置寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×22；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-51"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">51</span>
+      <span>56</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_640C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_640C</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-52"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">52</span>
+      <span>57</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>58</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FIL_LEN</td><td class="tcell">滤波宽度，低于对应脉冲宽度的信号将被硬件自动过滤掉。滤波宽度的计算公式为[15:0] + 1。</td></tr><tr class="trow-equal"><td class="tcell">[15:13]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FIL_75</td><td class="tcell">7/5滤波开关（连续采样7次，5次值一致）。默认关闭。 0: 关闭 1: 使能</td></tr><tr class="trow-equal"><td class="tcell">[11:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CLK_DIV</td><td class="tcell">HALL时钟分频系数。默认不分频。 <br>00:不分频 <br>01:2分频 <br>10:4分频 <br>11:8分频</td></tr><tr class="trow-equal"><td class="tcell">[3:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">HALL_EN</td><td class="tcell">HALL模块使能开关。默认关闭。 0: 关闭 1: 使能</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FIL_LEN</td><td class="tcell">滤波宽度，低于对应脉冲宽度的信号将被硬件自动过滤掉。滤波宽度的计算公式为[15:0] + 1。</td></tr><tr class="trow-equal"><td class="tcell">[15:13]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FIL_75</td><td class="tcell">7/5滤波开关（连续采样7次，5次值一致）。默认关闭。 0: 关闭 1: 使能</td></tr><tr class="trow-equal"><td class="tcell">[11:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CLK_DIV</td><td class="tcell">HALL时钟分频系数。默认不分频。 <br>00:不分频 <br>01:2分频 <br>10:4分频 <br>11:8分频</td></tr><tr class="trow-equal"><td class="tcell">[3:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">HALL_EN</td><td class="tcell">HALL模块使能开关。默认关闭。 0: 关闭 1: 使能</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-53"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">53</span>
+      <span>59</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-54"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">54</span>
+      <span>60</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>HALL_TH   HALL门限值寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.4 </span>HALL_TH   HALL门限值寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×20；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-55"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">55</span>
+      <span>61</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6410</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6410</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-56"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">56</span>
+      <span>62</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>63</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">TH</td><td class="tcell">HALL计数器门限值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">TH</td><td class="tcell">HALL计数器门限值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-57"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">57</span>
+      <span>64</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>HALL_CNT   HALL计数值寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.5 </span>HALL_CNT   HALL计数值寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×21；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-58"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">58</span>
+      <span>65</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6414</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6414</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-59"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">59</span>
+      <span>66</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>67</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CNT</td><td class="tcell">HALL计数值，写入任意值可清零</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CNT</td><td class="tcell">HALL计数值，写入任意值可清零</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-60"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">60</span>
+      <span>68</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>HALL_CCR   HALL捕获值寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.6 </span>HALL_CCR   HALL捕获值寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×21；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-61"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">61</span>
+      <span>69</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6418</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6418</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-62"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">62</span>
+      <span>70</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>71</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell"> [31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CCR</td><td class="tcell">HALL 宽度计数器值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CCR</td><td class="tcell">HALL 宽度计数器值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-63"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">63</span>
+      <span>72</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>HALL_INFO   HALL模块信息寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.7 </span>HALL_INFO   HALL模块信息寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×23；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-64"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">64</span>
+      <span>73</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_641C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_641C</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-65"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">65</span>
+      <span>74</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>75</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18:16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RAW_DATA</td><td class="tcell">HALL值，未滤波结果</td></tr><tr class="trow-equal"><td class="tcell">[15:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FLT_DATA</td><td class="tcell">HALL值，滤波结果</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18:16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RAW_DATA</td><td class="tcell">HALL值，未滤波结果</td></tr><tr class="trow-equal"><td class="tcell">[15:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FLT_DATA</td><td class="tcell">HALL值，滤波结果</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-66"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">66</span>
+      <span>76</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>HALL_LOCK   HALL模块解锁寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">13.4.8 </span>HALL_LOCK   HALL模块解锁寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×23；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-67"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">67</span>
+      <span>77</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6420</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6420</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-68"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">68</span>
+      <span>78</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>79</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">WO</td><td class="tcell">0</td><td class="tcell">KEY</td><td class="tcell">写0x5A5A解锁</td></tr><tr class="trow-equal"><td class="tcell">[15:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">HALL_UNLOCK</td><td class="tcell">KEY写入0x5A5A后，HALL_UNLOCK置1</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">WO</td><td class="tcell">0</td><td class="tcell">KEY</td><td class="tcell">写0x5A5A解锁</td></tr><tr class="trow-equal"><td class="tcell">[15:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">HALL_UNLOCK</td><td class="tcell">KEY写入0x5A5A后，HALL_UNLOCK置1</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-69"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">69</span>
+      <span>80</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表字体</span></p><div class="fmt">格式变更：段落段落样式: Normal→表字体</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-70"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">70</span>
+      <span>81</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>

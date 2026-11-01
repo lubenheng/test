@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>9_DMA_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>09_DMA_20261026.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>92.0%</b></span>
+    <span class="chip ins">新增 <b>10</b></span>
+    <span class="chip del">删除 <b>4</b></span>
+    <span class="chip mod">修改 <b>66</b></span>
+    <span class="chip">格式变更 <b>164</b></span>
+    <span class="chip">表格变更 <b>0</b></span>
+    <span class="chip">共 <b>80</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 80</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>9_DMA_20261031.docx（基准）</div>
+  <div>09_DMA_20261026.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-modify changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>DMA</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">Title_ch09</span><span class="num">9 </span>DMA</p><div class="fmt">格式变更：文字加粗: 关→继承 ×3；文字字体: 黑体→宋体 ×3；文字字号: 16 磅→28 磅 ×3；段落段落样式: 标题1→Title_ch09；段落编号层级: 继承→0</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>概述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 2_ch09</span><span class="num">9.1 </span>概述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；文字字体: 宋体→黑体 ×2；文字字号: 15 磅→14 磅 ×2；段落段落样式: 标题2→heading 2_ch09；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>DMA模块用于实现外设和内存间或内存和内存间或外设和外设间的数据传输，而不需要CPU干预。DMA模块支持6条通道用于外设和存储器之间的数据传输。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>DMA模块用于实现外设和内存间或内存和内存间或外设和外设间的数据传输，而不需要CPU干预。DMA模块支持6条通道用于外设和存储器之间的数据传输。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×72；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-4"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">4</span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>DMA通道传输时共用一个数据缓冲区，基于Round-Robin轮询且通道优先级可配的机制进行传输仲裁，每个通道都可进行四种优先级的配置。该缓冲区内含一个FIFO，大小为16 x 32-bit。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>DMA通道传输时共用一个数据缓冲区，基于Round-Robin轮询且通道优先级可配的机制进行传输仲裁，每个通道都可进行四种优先级的配置。该缓冲区内含一个FIFO，大小为16 x 32-bit。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×96；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-5"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">5</span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-center"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-6"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">6</span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">正文1_ch09</span></p><div class="fmt">格式变更：段落段落样式: Normal→正文1_ch09；段落段落样式: 0 张图片→1 张图片</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-7"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">7</span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图9-1 DMA框图</p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">正文1_ch09</span>图9-1 DMA框图</p><div class="fmt">格式变更：段落对齐方式: 继承→center；段落段落样式: 图注→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-8"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">8</span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>特性</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 2_ch09</span><span class="num">9.2 </span>特性</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；文字字体: 宋体→黑体 ×2；文字字号: 15 磅→14 磅 ×2；段落段落样式: 标题2→heading 2_ch09；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-9"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">9</span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>DMA具有以下主要特征：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>DMA具有以下主要特征：</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×12；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-10"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">10</span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>提供6个独立的可配置的硬件DMA请求传输通道，实现外设和内存间的直接数据传输，每个通道同样支持软件触发。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>提供6个独立的可配置的硬件DMA请求传输通道，实现外设和内存间的直接数据传输，每个通道同样支持软件触发。</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-11"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">11</span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>每个通道之间的仲裁使用通道优先级可配置的“Round-Robin”机制</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>每个通道之间的仲裁使用通道优先级可配置的“Round-Robin”机制</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-12"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">12</span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>所有通道均可配置内存、外设作为访问的源和目标的直接数据传输</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>所有通道均可配置内存、外设作为访问的源和目标的直接数据传输</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-13"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">13</span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>8-bit、16-bit、和32-bit宽度的数据传输</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>8-bit、16-bit、和32-bit宽度的数据传输</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-14"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">14</span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>按固定优先级自动实现通道传输仲裁</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>按固定优先级自动实现通道传输仲裁</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-15"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">15</span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>DMA通过系统AHB总线完成传输数据</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>DMA通过系统AHB总线完成传输数据</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-16"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">16</span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>DMA模块寄存器通过外设总线APB进行配置</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>DMA模块寄存器通过外设总线APB进行配置</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-17"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">17</span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>每个通道都有3个状态标志位（DMA传输完成和DMA当前传输通道），还有一个通道配置错误状态标志位。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>每个通道都有3个状态标志位（DMA传输完成和DMA当前传输通道），还有一个通道配置错误状态标志位。</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-18"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">18</span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>所有通道均支持自动重复传输</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>所有通道均支持自动重复传输</p><div class="fmt">格式变更：段落段落样式: 单段落→单段落_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-19"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">19</span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>DMA通道配置</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 2_ch09</span><span class="num">9.3 </span>DMA通道配置</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；文字字体: 宋体→黑体 ×7；文字字号: 15 磅→14 磅 ×7；段落段落样式: 标题2→heading 2_ch09；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-20"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">20</span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>有6个DMA通道用于外设和内存之间的数据传输，通道是相互独立的。每个通道可支持多个外设，即一个通道同一时间只能处理一个外设请求。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span><span class="ins">&nbsp;&nbsp;&nbsp;&nbsp;</span>有6个DMA通道用于外设和内存之间的数据传输，通道是相互独立的。每个通道可支持多个外设，即一个通道同一时间只能处理一个外设请求。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×64；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-21"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">21</span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>当需要DMA模块在外设和内存间传输数据时，需要将指定DMA通道关联至某一特定外设（详见通道关联外设选择寄存器DMA_CHCFG），例如UART_RX、SPI_TX等；当需要DMA模块在外设和外设间传输数据时，需要将指定DMA通道关联至源外设，同时使能对应外设的DMA请求控制位；当需要DMA模块在内存和内存之间传输数据时，需要将指定DMA通道的内存和内存之间的数据传输使能（控制寄存器DMA_CTRL的M2M置1）。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>当需要DMA模块在外设和内存间传输数据时，需要将指定DMA通道关联至某一特定外设（详见通道关联外设选择寄存器DMA_CHCFG），例如UART_RX、SPI_TX等；当需要DMA模块在外设和外设间传输数据时，需要将指定DMA通道关联至源外设，同时使能对应外设的DMA请求控制位；当需要DMA模块在内存和内存之间传输数据时，需要将指定DMA通道的内存和内存之间的数据传输使能（控制寄存器DMA_CTRL的M2M置1）。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×208；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-22"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">22</span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>DMA通道仲裁</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 2_ch09</span><span class="num">9.4 </span>DMA通道仲裁</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；文字字体: 宋体→黑体 ×7；文字字号: 15 磅→14 磅 ×7；段落段落样式: 标题2→heading 2_ch09；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-23"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">23</span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>DMA最高可支持6个通道同时传输，通道之间的仲裁使用通道优先级可配置的“Round-Robin”机制，用户可通过配置DMA控制寄存器（DMA_CTRL）的PL位域来配置不同通道的传输优先级。优先级可分为四个等级：低，中等，高，很高。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>DMA最高可支持6个通道同时传输，通道之间的仲裁使用通道优先级可配置的“Round-Robin”机制，用户可通过配置DMA控制寄存器（DMA_CTRL）的PL位域来配置不同通道的传输优先级。优先级可分为四个等级：低，中等，高，很高。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×116；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-24"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">24</span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>通道之间的仲裁整体上基于“Round-Robin”机制，即当各个通道优先级一样的情况下，这些通道的数据传输基于固定的优先级并发的轮询传输，通道基于“Round-Robin”固定轮询顺序如下：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>通道之间的仲裁整体上基于“Round-Robin”机制，即当各个通道优先级一样的情况下，这些通道的数据传输基于固定的优先级并发的轮询传输，通道基于“Round-Robin”固定轮询顺序如下：</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×95；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-25"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">25</span>
+      <span>25</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>通道5 -&gt; 通道4 -&gt; 通道3 -&gt; 通道2 -&gt; 通道1 -&gt; 通道0 -&gt; 通道5 -&gt; …</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>通道5 -&gt; 通道4 -&gt; 通道3 -&gt; 通道2 -&gt; 通道1 -&gt; 通道0 -&gt; 通道5 -&gt; …</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×50；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-26"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">26</span>
+      <span>26</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>当通道优先级不一样的情况下，高优先级的通道可抢占当前的传输通道，而低优先级的通道必须等到全部高优先级通道完成当前传输后才会启动或继续传输。当任意几个通道的优先级一样时（如都为中等优先级），则这些通道在没有其他更高优先级通道的情况下，会同时以“Round-Robin”机制进行数据传输，在这些通道全部完成数据传输后，较低优先级的通道开始工作，以此类推。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>当通道优先级不一样的情况下，高优先级的通道可抢占当前的传输通道，而低优先级的通道必须等到全部高优先级通道完成当前传输后才会启动或继续传输。当任意几个通道的优先级一样时（如都为中等优先级），则这些通道在没有其他更高优先级通道的情况下，会同时以“Round-Robin”机制进行数据传输，在这些通道全部完成数据传输后，较低优先级的通道开始工作，以此类推。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×175；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-27"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">27</span>
+      <span>27</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>原则上改变通道的优先级需要在通道空闲状态下进行，不建议用户在通道工作的情况下改变通道优先级。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>原则上改变通道的优先级需要在通道空闲状态下进行，不建议用户在通道工作的情况下改变通道优先级。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×46；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-28"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">28</span>
+      <span>28</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>DMA通道传输</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 2_ch09</span><span class="num">9.5 </span>DMA通道传输</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；文字字体: 宋体→黑体 ×7；文字字号: 15 磅→14 磅 ×7；段落段落样式: 标题2→heading 2_ch09；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-29"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">29</span>
+      <span>29</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>通道配置</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.5.1 </span>通道配置</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-30"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">30</span>
+      <span>30</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>DMA请求可以来自多个外设，在发生一个事件后，外设发送一个请求信号到DMA。DMA根据通道优先级仲裁处理请求。当DMA开始响应外设的请求时，DMA会发送一个ACK信号给外设，外设收到ACK信号后，释放它的请求，等待下一个请求的发生。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>DMA请求可以来自多个外设，在发生一个事件后，外设发送一个请求信号到DMA。DMA根据通道优先级仲裁处理请求。当DMA开始响应外设的请求时，DMA会发送一个ACK信号给外设，外设收到ACK信号后，释放它的请求，等待下一个请求的发生。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×116；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-31"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">31</span>
+      <span>31</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>数据传输由一系列的数据包实现。数据包共有两种：一是从数据源至DMA控制器；另一种则是从DMA控制器至数据目的地。此DMA也支持“外设至外设”访问，此时需要把源地址使能DMA模式，而目的地址所对应的外设要当作内存来访问并禁止该外设的DMA模式。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>数据传输由一系列的数据包实现。数据包共有两种：一是从数据源至DMA控制器；另一种则是从DMA控制器至数据目的地。此DMA也支持“外设至外设”访问，此时需要把源地址使能DMA模式，而目的地址所对应的外设要当作内存来访问并禁止该外设的DMA模式。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×121；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-32"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">32</span>
+      <span>32</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">正文1_ch09</span></p><div class="fmt">格式变更：段落段落样式: Normal→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-33"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">33</span>
+      <span>33</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图9-2 DMA通道请求图</p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">正文1_ch09</span>图9-2 DMA通道请求图</p><div class="fmt">格式变更：段落对齐方式: 继承→center；段落段落样式: 图注→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-34"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">34</span>
+      <span>34</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>数据大小</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.5.2 </span>数据大小</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-35"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">35</span>
+      <span>35</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>DMA传输的数据位宽可配置为8-bit、16-bit或32bit，配置控制寄存器DMACHn_CTL的SSIZE/DSIZE。DMA传输最大数据量是可配置的（配置数据最大长度配置寄存器DMACHn_MAX），最大可达到65535，DMA完成一次请求的数据传输，数据量进行一次递减。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>DMA传输的数据位宽可配置为8-bit、16-bit或32bit，配置控制寄存器DMACHn_CTL的SSIZE/DSIZE。DMA传输最大数据量是可配置的（配置数据最大长度配置寄存器DMACHn_MAX），最大可达到65535，DMA完成一次请求的数据传输，数据量进行一次递减。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×140；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-36"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">36</span>
+      <span>36</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span> DMA通道总传输大小=传输数据量 × 数据位宽</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span> DMA通道总传输大小=传输数据量 × 数据位宽</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×24；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-37"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">37</span>
+      <span>37</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>地址模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.5.3 </span>地址模式</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-38"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">38</span>
+      <span>38</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>DMA的源地址和目的地址分别可以配置为固定地址或者地址递增，具体配置见控制寄存器DMACHn_CTL的SINC和DINC。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>DMA的源地址和目的地址分别可以配置为固定地址或者地址递增，具体配置见控制寄存器DMACHn_CTL的SINC和DINC。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×61；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-39"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">39</span>
+      <span>39</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址固定表示，每次数据传输后，当前地址不变；地址递增表示，每次数据传输后当前地址以1、2或4为间隔递增。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>地址固定表示，每次数据传输后，当前地址不变；地址递增表示，每次数据传输后当前地址以1、2或4为间隔递增。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×52；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-40"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">40</span>
+      <span>40</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>自动重载</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.5.4 </span>自动重载</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-41"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">41</span>
+      <span>41</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>当 DMA控制寄存器 DMACHn_CTL 中的自动重载控制位 RT被置位时，当PDMA 通道数据传输完全完成时，通道n当前地址和通道n当前传输大小将分别自动载入对应的初始值。通道n仍然有效且下一个相关的DMA 请求在不需要软件重新配置。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>当 DMA控制寄存器 DMACHn_CTL 中的自动重载控制位 RT被置位时，当PDMA 通道数据传输完全完成时，通道n当前地址和通道n当前传输大小将分别自动载入对应的初始值。通道n仍然有效且下一个相关的DMA 请求在不需要软件重新配置。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×119；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-42"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">42</span>
+      <span>42</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>中断状态管理</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.5.5 </span>中断状态管理</p><div class="fmt">格式变更：文字加粗: 关→继承 ×6；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-43"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">43</span>
+      <span>43</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>4个通道的任意两个通道配置了相同的关联外设设备，配置错误标志位将会立起，如果使能中断，会产生中断。当DMA所有数据传输完成，相应通道的传输完成标志位将会立起（IFDn），可以通过配置中断使能寄存器DMA_MASK打开对应通道的中断。通过读取状态寄存器DMA_STAT的ACTn知道当前正在传输数据的通道。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>4个通道的任意两个通道配置了相同的关联外设设备，配置错误标志位将会立起，如果使能中断，会产生中断。当DMA所有数据传输完成，相应通道的传输完成标志位将会立起（IFDn），可以通过配置中断使能寄存器DMA_MASK打开对应通道的中断。通过读取状态寄存器DMA_STAT的ACTn知道当前正在传输数据的通道。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×152；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-44"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">44</span>
+      <span>44</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器列表</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 2_ch09</span><span class="num">9.6 </span>寄存器列表</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；文字字体: 宋体→黑体 ×5；文字字号: 15 磅→14 磅 ×5；段落段落样式: 标题2→heading 2_ch09；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>45</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">地址</td><td class="tcell">寄存器</td><td class="tcell">描述</td><td class="tcell">备注</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0000</td><td class="tcell">DMACH0_SRCB</td><td class="tcell">DMA通道0数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0004</td><td class="tcell">DMACH0_DSTB</td><td class="tcell">DMA通道0数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0008</td><td class="tcell">DMACH0_MAX</td><td class="tcell">DMA通道0数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_000C</td><td class="tcell">DMACH0_CTL</td><td class="tcell">DMA通道0控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0010</td><td class="tcell">DMACH0_SCUR</td><td class="tcell">DMA通道0当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0014</td><td class="tcell">DMACH0_DCUR</td><td class="tcell">DMA通道0当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0018</td><td class="tcell">DMACH0_TCNT</td><td class="tcell">DMA通道0终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0020</td><td class="tcell">DMACH1_SRCB</td><td class="tcell">DMA通道1数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0024</td><td class="tcell">DMACH1_DSTB</td><td class="tcell">DMA通道1数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0028</td><td class="tcell">DMACH1_MAX</td><td class="tcell">DMA通道1数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_002C</td><td class="tcell">DMACH1_CTL</td><td class="tcell">DMA通道1控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0030</td><td class="tcell">DMACH1_SCUR</td><td class="tcell">DMA通道1当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0034</td><td class="tcell">DMACH1_DCUR</td><td class="tcell">DMA通道1当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0038</td><td class="tcell">DMACH1_TCNT</td><td class="tcell">DMA通道1终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0040</td><td class="tcell">DMACH2_SRCB</td><td class="tcell">DMA通道2数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0044</td><td class="tcell">DMACH2_DSTB</td><td class="tcell">DMA通道2数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0048</td><td class="tcell">DMACH2_MAX</td><td class="tcell">DMA通道2数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_004C</td><td class="tcell">DMACH2_CTL</td><td class="tcell">DMA通道2控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0050</td><td class="tcell">DMACH2_SCUR</td><td class="tcell">DMA通道2当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0054</td><td class="tcell">DMACH2_DCUR</td><td class="tcell">DMA通道2当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0058</td><td class="tcell">DMACH2_TCNT</td><td class="tcell">DMA通道2终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0060</td><td class="tcell">DMACH3_SRCB</td><td class="tcell">DMA通道3数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0064</td><td class="tcell">DMACH3_DSTB</td><td class="tcell">DMA通道3数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0068</td><td class="tcell">DMACH3_MAX</td><td class="tcell">DMA通道3数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_006C</td><td class="tcell">DMACH3_CTL</td><td class="tcell">DMA通道3控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0070</td><td class="tcell">DMACH3_SCUR</td><td class="tcell">DMA通道3当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0074</td><td class="tcell">DMACH3_DCUR</td><td class="tcell">DMA通道3当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0078</td><td class="tcell">DMACH3_TCNT</td><td class="tcell">DMA通道3终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0080</td><td class="tcell">DMACH4_SRCB</td><td class="tcell">DMA通道4数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0084</td><td class="tcell">DMACH4_DSTB</td><td class="tcell">DMA通道4数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0088</td><td class="tcell">DMACH4_MAX</td><td class="tcell">DMA通道4数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_008C</td><td class="tcell">DMACH4_CTL</td><td class="tcell">DMA通道4控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0090</td><td class="tcell">DMACH4_SCUR</td><td class="tcell">DMA通道4当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0094</td><td class="tcell">DMACH4_DCUR</td><td class="tcell">DMA通道4当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0098</td><td class="tcell">DMACH4_TCNT</td><td class="tcell">DMA通道4终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00A0</td><td class="tcell">DMACH5_SRCB</td><td class="tcell">DMA通道5数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00A4</td><td class="tcell">DMACH5_DSTB</td><td class="tcell">DMA通道5数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00A8</td><td class="tcell">DMACH5_MAX</td><td class="tcell">DMA通道5数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00AC</td><td class="tcell">DMACH5_CTL</td><td class="tcell">DMA通道5控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00B0</td><td class="tcell">DMACH5_SCUR</td><td class="tcell">DMA通道5当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00B4</td><td class="tcell">DMACH5_DCUR</td><td class="tcell">DMA通道5当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00B8</td><td class="tcell">DMACH5_TCNT</td><td class="tcell">DMA通道5终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00C0</td><td class="tcell">DMA_MASK</td><td class="tcell">DMA中断使能寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00C4</td><td class="tcell">DMA_CLR</td><td class="tcell">DMA中断清除寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00C8</td><td class="tcell">DMA_STAT</td><td class="tcell">DMA状态寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00CC</td><td class="tcell">DMA_CHCFG1</td><td class="tcell">DMA通道关联外设选择寄存器1</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00D0</td><td class="tcell">DMA_CHCFG2</td><td class="tcell">DMA通道关联外设选择寄存器2</td><td class="tcell">&nbsp;</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">地址</td><td class="tcell">寄存器</td><td class="tcell">描述</td><td class="tcell">备注</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0000</td><td class="tcell">DMACH0_SRCB</td><td class="tcell">DMA通道0数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0004</td><td class="tcell">DMACH0_DSTB</td><td class="tcell">DMA通道0数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0008</td><td class="tcell">DMACH0_MAX</td><td class="tcell">DMA通道0数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_000C</td><td class="tcell">DMACH0_CTL</td><td class="tcell">DMA通道0控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0010</td><td class="tcell">DMACH0_SCUR</td><td class="tcell">DMA通道0当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0014</td><td class="tcell">DMACH0_DCUR</td><td class="tcell">DMA通道0当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0018</td><td class="tcell">DMACH0_TCNT</td><td class="tcell">DMA通道0终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0020</td><td class="tcell">DMACH1_SRCB</td><td class="tcell">DMA通道1数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0024</td><td class="tcell">DMACH1_DSTB</td><td class="tcell">DMA通道1数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0028</td><td class="tcell">DMACH1_MAX</td><td class="tcell">DMA通道1数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_002C</td><td class="tcell">DMACH1_CTL</td><td class="tcell">DMA通道1控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0030</td><td class="tcell">DMACH1_SCUR</td><td class="tcell">DMA通道1当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0034</td><td class="tcell">DMACH1_DCUR</td><td class="tcell">DMA通道1当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0038</td><td class="tcell">DMACH1_TCNT</td><td class="tcell">DMA通道1终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0040</td><td class="tcell">DMACH2_SRCB</td><td class="tcell">DMA通道2数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0044</td><td class="tcell">DMACH2_DSTB</td><td class="tcell">DMA通道2数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0048</td><td class="tcell">DMACH2_MAX</td><td class="tcell">DMA通道2数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_004C</td><td class="tcell">DMACH2_CTL</td><td class="tcell">DMA通道2控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0050</td><td class="tcell">DMACH2_SCUR</td><td class="tcell">DMA通道2当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0054</td><td class="tcell">DMACH2_DCUR</td><td class="tcell">DMA通道2当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0058</td><td class="tcell">DMACH2_TCNT</td><td class="tcell">DMA通道2终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0060</td><td class="tcell">DMACH3_SRCB</td><td class="tcell">DMA通道3数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0064</td><td class="tcell">DMACH3_DSTB</td><td class="tcell">DMA通道3数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0068</td><td class="tcell">DMACH3_MAX</td><td class="tcell">DMA通道3数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_006C</td><td class="tcell">DMACH3_CTL</td><td class="tcell">DMA通道3控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0070</td><td class="tcell">DMACH3_SCUR</td><td class="tcell">DMA通道3当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0074</td><td class="tcell">DMACH3_DCUR</td><td class="tcell">DMA通道3当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0078</td><td class="tcell">DMACH3_TCNT</td><td class="tcell">DMA通道3终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0080</td><td class="tcell">DMACH4_SRCB</td><td class="tcell">DMA通道4数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0084</td><td class="tcell">DMACH4_DSTB</td><td class="tcell">DMA通道4数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0088</td><td class="tcell">DMACH4_MAX</td><td class="tcell">DMA通道4数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_008C</td><td class="tcell">DMACH4_CTL</td><td class="tcell">DMA通道4控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0090</td><td class="tcell">DMACH4_SCUR</td><td class="tcell">DMA通道4当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0094</td><td class="tcell">DMACH4_DCUR</td><td class="tcell">DMA通道4当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_0098</td><td class="tcell">DMACH4_TCNT</td><td class="tcell">DMA通道4终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00A0</td><td class="tcell">DMACH5_SRCB</td><td class="tcell">DMA通道5数据源基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00A4</td><td class="tcell">DMACH5_DSTB</td><td class="tcell">DMA通道5数据目的基地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00A8</td><td class="tcell">DMACH5_MAX</td><td class="tcell">DMA通道5数据块最大长度</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00AC</td><td class="tcell">DMACH5_CTL</td><td class="tcell">DMA通道5控制寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00B0</td><td class="tcell">DMACH5_SCUR</td><td class="tcell">DMA通道5当前数据源地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00B4</td><td class="tcell">DMACH5_DCUR</td><td class="tcell">DMA通道5当前数据目的地址</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00B8</td><td class="tcell">DMACH5_TCNT</td><td class="tcell">DMA通道5终止传输计数器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00C0</td><td class="tcell">DMA_MASK</td><td class="tcell">DMA中断使能寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00C4</td><td class="tcell">DMA_CLR</td><td class="tcell">DMA中断清除寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00C8</td><td class="tcell">DMA_STAT</td><td class="tcell">DMA状态寄存器</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00CC</td><td class="tcell">DMA_CHCFG1</td><td class="tcell">DMA通道关联外设选择寄存器1</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">0x4000_00D0</td><td class="tcell">DMA_CHCFG2</td><td class="tcell">DMA通道关联外设选择寄存器2</td><td class="tcell">&nbsp;</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-45"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">45</span>
+      <span>46</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-46"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">46</span>
+      <span>47</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 2_ch09</span><span class="num">9.7 </span>寄存器描述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；文字字体: 宋体→黑体 ×5；文字字号: 15 磅→14 磅 ×5；段落段落样式: 标题2→heading 2_ch09；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-47"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">47</span>
+      <span>48</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>数据源基地址寄存器DMACHn_SRCB（n=0,1,2,3,4,5）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.1 </span>数据源基地址寄存器DMACHn_SRCB（n=0,1,2,3,4,5）</p><div class="fmt">格式变更：文字加粗: 关→继承 ×35；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>49</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0x0</td><td class="tcell">SOURCE</td><td class="tcell">DMA通道n数据源基地址：当DMA控制器启动一次DMA传输时，SOURCE会被送入当前数据源地址寄存器DMACHn_SCUR中（n = 0,1,2,3,4,5）。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0x0</td><td class="tcell">SOURCE</td><td class="tcell">DMA通道n数据源基地址：当DMA控制器启动一次DMA传输时，SOURCE会被送入当前数据源地址寄存器DMACHn_SCUR中（n = 0,1,2,3,4,5）。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-48"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">48</span>
+      <span>50</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-49"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">49</span>
+      <span>51</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>数据目的基地址DMACHn_DSTB（n=0,1,2,3,4,5）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.2 </span>数据目的基地址DMACHn_DSTB（n=0,1,2,3,4,5）</p><div class="fmt">格式变更：文字加粗: 关→继承 ×33；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>52</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0x0</td><td class="tcell">DEST</td><td class="tcell">DMA通道n数据目的基地址：当DMA控制器启动一次DMA传输时，DEST会被送入当前数据目的地址寄存器DMACHn_DCUR中（n = 0,1,2,3,4,5）。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">0x0</td><td class="tcell">DEST</td><td class="tcell">DMA通道n数据目的基地址：当DMA控制器启动一次DMA传输时，DEST会被送入当前数据目的地址寄存器DMACHn_DCUR中（n = 0,1,2,3,4,5）。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-50"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">50</span>
+      <span>53</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-51"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">51</span>
+      <span>54</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>数据最大长度配置寄存器DMACHn_MAX（n=0,1,2,3,4,5）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.3 </span>数据最大长度配置寄存器DMACHn_MAX（n=0,1,2,3,4,5）</p><div class="fmt">格式变更：文字加粗: 关→继承 ×36；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>55</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MAX_CNT</td><td class="tcell">DMA通道n数据块最大长度：设定下次DMA传输时数据块的最大长度，只有低16位有效。数据长度的单位为指定DMA传输的数据宽度— 字节（8位），半字（16位），或字(32位）。当DMA控制器启动一次DMA传输时，该寄存器的值将被送入终止传输计数寄存器DMA_CHn_TCNT（n = 0,1,2,3,4,5）。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MAX_CNT</td><td class="tcell">DMA通道n数据块最大长度：设定下次DMA传输时数据块的最大长度，只有低16位有效。数据长度的单位为指定DMA传输的数据宽度— 字节（8位），半字（16位），或字(32位）。当DMA控制器启动一次DMA传输时，该寄存器的值将被送入终止传输计数寄存器DMA_CHn_TCNT（n = 0,1,2,3,4,5）。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-52"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">52</span>
+      <span>56</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-53"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">53</span>
+      <span>57</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>控制寄存器DMACHn_CTL（n=0,1,2,3,4,5）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.4 </span>控制寄存器DMACHn_CTL（n=0,1,2,3,4,5）</p><div class="fmt">格式变更：文字加粗: 关→继承 ×30；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>58</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:15]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">[14]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RT</td><td class="tcell">控制DMA自动重复数据传输：<br>0b：设定数量的数据传输完成后DMA终止<br>1b：设定数量的数据传输完成后DMA自动重复工作</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">DIR</td><td class="tcell">控制DMA传输的方向：<br>0b：外设至内存直接数据传输，外设为数据源<br>1b：内存至外设直接数据传输，外设为数据目的地</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">M2M</td><td class="tcell">设定内存不同区域间的直接快速数据传输<br>0b：外设和内存间的直接数据传输<br>1b：内存和内存间的直接数据传输</td></tr><tr class="trow-equal"><td class="tcell">[10:9]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">PL</td><td class="tcell">配置DMA控制器通道n的传输优先级<br>00b：低<br>01b：中等<br>10b：高<br>11b：很高</td></tr><tr class="trow-equal"><td class="tcell">[8:7]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">DSIZE</td><td class="tcell">设定DMA控制器至目的地的数据传输宽度<br>00b：每次传1个字节（8位）<br>01b：每次传1个半字（16位）<br>10b：每次传1个字（32位）<br>11b：保留</td></tr><tr class="trow-equal"><td class="tcell">[6:5]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SBURST</td><td class="tcell">SBURST定义了DMA突发传输的数据长度。如果外设为数据源，则其设定了在往内存写入数据前DMA控制器从外设处获得并存入自身FIFO的数据字长度；如果外设为数据传输的目的地，则DMA控制器会自动按此突发传输的长度从内存中获取适量的数据；如果通道n被设成内存至内存的直接传输，则该值为数据源的突发传输长度。<br>00b：每次传1个单位<br>01b：保留<br>10b：保留<br>11b：保留<br>由此可知，一次DMA传输的数据包总长度由SBURST和SSIZE值共同决定。</td></tr><tr class="trow-equal"><td class="tcell">[4:3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SSIZE</td><td class="tcell">设定数据源至DMA控制器的数据传输宽度<br>00b：每次传1个字节（8位）<br>01b：每次传1个半字（16位）<br>10b：每次传1个字（32位）<br>11b：保留</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">DINC</td><td class="tcell">控制每次DMA传输后目的地址自动递增<br>0b：每次传输后目的地址不变<br>1b：每次传输后目的地址自动递增</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SINC</td><td class="tcell">控制每次DMA传输后源地址自动递增<br>0b：每次传输后源地址不变<br>1b：每次传输后源地址自动递增</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">EN</td><td class="tcell">使能DMA通道进行数据传输<br>0b：禁止DMA通道数据传输<br>1b：打开DMA通道数据传输，在该位被置1前必须先设定好数据源寄存器，数据目的寄存器和数据长度寄存器。如果在数据传输过程中该位被软件清零，则此DMA传输通道将被复位。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:15]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">&nbsp;</td></tr><tr class="trow-equal"><td class="tcell">[14]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RT</td><td class="tcell">控制DMA自动重复数据传输：<br>0b：设定数量的数据传输完成后DMA终止<br>1b：设定数量的数据传输完成后DMA自动重复工作</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">DIR</td><td class="tcell">控制DMA传输的方向：<br>0b：外设至内存直接数据传输，外设为数据源<br>1b：内存至外设直接数据传输，外设为数据目的地</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">M2M</td><td class="tcell">设定内存不同区域间的直接快速数据传输<br>0b：外设和内存间的直接数据传输<br>1b：内存和内存间的直接数据传输</td></tr><tr class="trow-equal"><td class="tcell">[10:9]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">PL</td><td class="tcell">配置DMA控制器通道n的传输优先级<br>00b：低<br>01b：中等<br>10b：高<br>11b：很高</td></tr><tr class="trow-equal"><td class="tcell">[8:7]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">DSIZE</td><td class="tcell">设定DMA控制器至目的地的数据传输宽度<br>00b：每次传1个字节（8位）<br>01b：每次传1个半字（16位）<br>10b：每次传1个字（32位）<br>11b：保留</td></tr><tr class="trow-equal"><td class="tcell">[6:5]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SBURST</td><td class="tcell">SBURST定义了DMA突发传输的数据长度。如果外设为数据源，则其设定了在往内存写入数据前DMA控制器从外设处获得并存入自身FIFO的数据字长度；如果外设为数据传输的目的地，则DMA控制器会自动按此突发传输的长度从内存中获取适量的数据；如果通道n被设成内存至内存的直接传输，则该值为数据源的突发传输长度。<br>00b：每次传1个单位<br>01b：保留<br>10b：保留<br>11b：保留<br>由此可知，一次DMA传输的数据包总长度由SBURST和SSIZE值共同决定。</td></tr><tr class="trow-equal"><td class="tcell">[4:3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SSIZE</td><td class="tcell">设定数据源至DMA控制器的数据传输宽度<br>00b：每次传1个字节（8位）<br>01b：每次传1个半字（16位）<br>10b：每次传1个字（32位）<br>11b：保留</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">DINC</td><td class="tcell">控制每次DMA传输后目的地址自动递增<br>0b：每次传输后目的地址不变<br>1b：每次传输后目的地址自动递增</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SINC</td><td class="tcell">控制每次DMA传输后源地址自动递增<br>0b：每次传输后源地址不变<br>1b：每次传输后源地址自动递增</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">EN</td><td class="tcell">使能DMA通道进行数据传输<br>0b：禁止DMA通道数据传输<br>1b：打开DMA通道数据传输，在该位被置1前必须先设定好数据源寄存器，数据目的寄存器和数据长度寄存器。如果在数据传输过程中该位被软件清零，则此DMA传输通道将被复位。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-54"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">54</span>
+      <span>59</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span></p><div class="fmt">格式变更：段落段落样式: Normal→单段落_ch09；段落编号层级: 继承→0；段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-55"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">55</span>
+      <span>60</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-56"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">56</span>
+      <span>61</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>当前源地址寄存器DMACHn_SCUR（n=0,1,2,3,4,5）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.5 </span>当前源地址寄存器DMACHn_SCUR（n=0,1,2,3,4,5）</p><div class="fmt">格式变更：文字加粗: 关→继承 ×34；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>62</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">SCUR</td><td class="tcell">DMA通道n当前源地址：该寄存器只读，指示当前DMA传输时的数据源地址。如果SINC为1，则每次传输后该寄存器的值会随着源地址的递增而同步改变；如果SINC为0，则其内容保持不变。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">SCUR</td><td class="tcell">DMA通道n当前源地址：该寄存器只读，指示当前DMA传输时的数据源地址。如果SINC为1，则每次传输后该寄存器的值会随着源地址的递增而同步改变；如果SINC为0，则其内容保持不变。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-57"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">57</span>
+      <span>63</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-58"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">58</span>
+      <span>64</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>当前目的地址寄存器DMACHn_DCUR（n=0,1,2,3,4,5）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.6 </span>当前目的地址寄存器DMACHn_DCUR（n=0,1,2,3,4,5）</p><div class="fmt">格式变更：文字加粗: 关→继承 ×35；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>65</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">DCUR</td><td class="tcell">DMA通道n当前目的地址：该寄存器只读，指示当前DMA传输时的数据目的地址。如果DINC为1，则每次传输后该寄存器的值会随着目的地址的递增而同步改变；如果DINC为0，则其内容保持不变。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">DCUR</td><td class="tcell">DMA通道n当前目的地址：该寄存器只读，指示当前DMA传输时的数据目的地址。如果DINC为1，则每次传输后该寄存器的值会随着目的地址的递增而同步改变；如果DINC为0，则其内容保持不变。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-59"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">59</span>
+      <span>66</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="ins">  </span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-60"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">60</span>
+      <span>67</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>终止传输计数器DMACHn_TCNT（n=0,1,2,3,4,5）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.7 </span>终止传输计数器DMACHn_TCNT（n=0,1,2,3,4,5）</p><div class="fmt">格式变更：文字加粗: 关→继承 ×33；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>68</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TCNT</td><td class="tcell">DMA通道n传输计数：此寄存器只有低16位有效且只读，表示一次DMA传输过程中还有多少数据单元尚未完成传输。DMA控制器在传输了一个数据单元后该寄存器就递减，直到归零，并结束本次DMA传输过程。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">TCNT</td><td class="tcell">DMA通道n传输计数：此寄存器只有低16位有效且只读，表示一次DMA传输过程中还有多少数据单元尚未完成传输。DMA控制器在传输了一个数据单元后该寄存器就递减，直到归零，并结束本次DMA传输过程。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-61"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">61</span>
+      <span>69</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-62"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">62</span>
+      <span>70</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>中断使能寄存器DMA_MASK</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.8 </span>中断使能寄存器DMA_MASK</p><div class="fmt">格式变更：文字加粗: 关→继承 ×15；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>71</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MME</td><td class="tcell">配置错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道配置错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道配置错误中断</td></tr><tr class="trow-equal"><td class="tcell">[30:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME5</td><td class="tcell">通道5数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道5数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道5数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME4</td><td class="tcell">通道4数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道4数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道4数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME3</td><td class="tcell">通道3数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道3数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道3数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME2</td><td class="tcell">通道2数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道2数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道2数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME1</td><td class="tcell">通道1数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道1数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道1数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME0</td><td class="tcell">通道0数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道0数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道0数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD5</td><td class="tcell">通道5数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道5数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道5数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD4</td><td class="tcell">通道4数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道4数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道4数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD3</td><td class="tcell">通道3数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道3数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道3数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD2</td><td class="tcell">通道2数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道2数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道2数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD1</td><td class="tcell">通道1数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道1数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道1数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD0</td><td class="tcell">通道0数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道0数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道0数据传输中断</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MME</td><td class="tcell">配置错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道配置错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道配置错误中断</td></tr><tr class="trow-equal"><td class="tcell">[30:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME5</td><td class="tcell">通道5数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道5数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道5数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME4</td><td class="tcell">通道4数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道4数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道4数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME3</td><td class="tcell">通道3数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道3数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道3数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME2</td><td class="tcell">通道2数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道2数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道2数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME1</td><td class="tcell">通道1数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道1数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道1数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ME0</td><td class="tcell">通道0数据错误中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道0数据错误中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道0数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD5</td><td class="tcell">通道5数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道5数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道5数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD4</td><td class="tcell">通道4数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道4数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道4数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD3</td><td class="tcell">通道3数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道3数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道3数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD2</td><td class="tcell">通道2数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道2数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道2数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD1</td><td class="tcell">通道1数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道1数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道1数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MD0</td><td class="tcell">通道0数据传输中断使能<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;禁止DMA通道0数据传输中断<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;使能DMA通道0数据传输中断</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-63"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">63</span>
+      <span>72</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span></p><div class="fmt">格式变更：段落段落样式: Normal→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-64"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">64</span>
+      <span>73</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>中断清除寄存器DMA_CLR</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.9 </span>中断清除寄存器DMA_CLR</p><div class="fmt">格式变更：文字加粗: 关→继承 ×14；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>74</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CME</td><td class="tcell">配置错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道配置错误中断</td></tr><tr class="trow-equal"><td class="tcell">[30:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE5</td><td class="tcell">通道5数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道5数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE4</td><td class="tcell">通道4数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道4数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE3</td><td class="tcell">通道3数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道3数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE2</td><td class="tcell">通道2数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道2数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE1</td><td class="tcell">通道1数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道1数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE0</td><td class="tcell">通道0数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道0数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD5</td><td class="tcell">通道5数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道5数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD4</td><td class="tcell">通道4数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道4数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD3</td><td class="tcell">通道3数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道3数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD2</td><td class="tcell">通道2数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道2数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD1</td><td class="tcell">通道1数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道1数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD0</td><td class="tcell">通道0数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道0数据传输中断</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CME</td><td class="tcell">配置错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道配置错误中断</td></tr><tr class="trow-equal"><td class="tcell">[30:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE5</td><td class="tcell">通道5数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道5数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE4</td><td class="tcell">通道4数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道4数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE3</td><td class="tcell">通道3数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道3数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE2</td><td class="tcell">通道2数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道2数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE1</td><td class="tcell">通道1数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道1数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CE0</td><td class="tcell">通道0数据错误中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道0数据错误中断</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD5</td><td class="tcell">通道5数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道5数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD4</td><td class="tcell">通道4数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道4数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD3</td><td class="tcell">通道3数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道3数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD2</td><td class="tcell">通道2数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道2数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD1</td><td class="tcell">通道1数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道1数据传输中断</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">W</td><td class="tcell">0</td><td class="tcell">CD0</td><td class="tcell">通道0数据传输中断清除<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无作用<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;清除DMA通道0数据传输中断</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-65"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">65</span>
+      <span>75</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span></p><div class="fmt">格式变更：段落段落样式: Normal→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-66"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">66</span>
+      <span>76</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-67"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">67</span>
+      <span>77</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-68"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">68</span>
+      <span>78</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>中断状态寄存器DMA_STAT</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.10 </span>中断状态寄存器DMA_STAT</p><div class="fmt">格式变更：文字加粗: 关→继承 ×15；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>79</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFME</td><td class="tcell">配置错误中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道配置正确<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道配置错误</td></tr><tr class="trow-equal"><td class="tcell">[30:22]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT5</td><td class="tcell">通道5数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT4</td><td class="tcell">通道4数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT3</td><td class="tcell">通道3数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT2</td><td class="tcell">通道2数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT1</td><td class="tcell">通道1数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT0</td><td class="tcell">通道0数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE5</td><td class="tcell">通道5数据错误中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE4</td><td class="tcell">通道4数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE3</td><td class="tcell">通道3数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE2</td><td class="tcell">通道2数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE1</td><td class="tcell">通道1数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE0</td><td class="tcell">通道0数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD5</td><td class="tcell">通道5数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD4</td><td class="tcell">通道4数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD3</td><td class="tcell">通道3数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD2</td><td class="tcell">通道2数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD1</td><td class="tcell">通道1数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD0</td><td class="tcell">通道0数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0数据传输中断请求</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFME</td><td class="tcell">配置错误中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道配置正确<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道配置错误</td></tr><tr class="trow-equal"><td class="tcell">[30:22]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[21]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT5</td><td class="tcell">通道5数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[20]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT4</td><td class="tcell">通道4数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT3</td><td class="tcell">通道3数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT2</td><td class="tcell">通道2数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT1</td><td class="tcell">通道1数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">ACT0</td><td class="tcell">通道0数据传输标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0空闲<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0数据数据传输中</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE5</td><td class="tcell">通道5数据错误中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE4</td><td class="tcell">通道4数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE3</td><td class="tcell">通道3数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE2</td><td class="tcell">通道2数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[9]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE1</td><td class="tcell">通道1数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFE0</td><td class="tcell">通道0数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0数据错误中断请求</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD5</td><td class="tcell">通道5数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道5数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD4</td><td class="tcell">通道4数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道4数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD3</td><td class="tcell">通道3数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道3数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD2</td><td class="tcell">通道2数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道2数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD1</td><td class="tcell">通道1数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道1数据传输中断请求</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R</td><td class="tcell">0</td><td class="tcell">IFD0</td><td class="tcell">通道0数据传输中断标志<br>0b：&nbsp;&nbsp;&nbsp;&nbsp;无中断请求<br>1b：&nbsp;&nbsp;&nbsp;&nbsp;DMA通道0数据传输中断请求</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-69"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">69</span>
+      <span>80</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-70"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">70</span>
+      <span>81</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>注：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>注：</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×2；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-71"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">71</span>
+      <span>82</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>IFD0-IFD5位为DMA数据传输中断标志．当DMA通道完成了一个完整的数据包传输后，对应的中断标志位被置1．</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>IFD0-IFD5位为DMA数据传输中断标志．当DMA通道完成了一个完整的数据包传输后，对应的中断标志位被置1．</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×56；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-72"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">72</span>
+      <span>83</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>IFE0-IFE5位为错误标志位．因任何原因导致某一错误标志被置1后，对应DMA通道的当前数据传输被立即终止并禁止任何后续的数据传输，直到软件重新使能DMACHn_CTL.EN位．</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>IFE0-IFE5位为错误标志位．因任何原因导致某一错误标志被置1后，对应DMA通道的当前数据传输被立即终止并禁止任何后续的数据传输，直到软件重新使能DMACHn_CTL.EN位．</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×90；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-73"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">73</span>
+      <span>84</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>ACT0-ACT5位为对应DMA通道的工作标志位．如果DMA通道正忙于进行数据传输，则对应位为1，否则为0．</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>ACT0-ACT5位为对应DMA通道的工作标志位．如果DMA通道正忙于进行数据传输，则对应位为1，否则为0．</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×54；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-74"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">74</span>
+      <span>85</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>IFME位DMA模块各通道和外设功能关联错误标志位．如果任一DMA通道和外设功能的关联出现错误（例如外设功能被重复关联，或关联非法外设功能），则IFME位为1，否则为0．</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span>IFME位DMA模块各通道和外设功能关联错误标志位．如果任一DMA通道和外设功能的关联出现错误（例如外设功能被重复关联，或关联非法外设功能），则IFME位为1，否则为0．</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×85；段落段落样式: 段落正文→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-75"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">75</span>
+      <span>86</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-76"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">76</span>
+      <span>87</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>通道关联外设选择寄存器1 DMA_CHCFG1</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.11 </span>通道关联外设选择寄存器1 DMA_CHCFG1</p><div class="fmt">格式变更：文字加粗: 关→继承 ×23；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>88</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31：30]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[29:24]</td><td class="tcell">R/W</td><td class="tcell">0x3</td><td class="tcell">CH3SEL</td><td class="tcell">DMA通道3源设备选择：选择DMA通道3关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[23：22]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[21:16]</td><td class="tcell">R/W</td><td class="tcell">0x2</td><td class="tcell">CH2SEL</td><td class="tcell">DMA通道2源设备选择：选择DMA通道2关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13:8]</td><td class="tcell">R/W</td><td class="tcell">0x1</td><td class="tcell">CH1SEL</td><td class="tcell">DMA通道1源设备选择：选择DMA通道1关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R/W</td><td class="tcell">0x0</td><td class="tcell">CH0SEL</td><td class="tcell">DMA通道0源设备选择：选择DMA通道0关联的外设功能</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31：30]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[29:24]</td><td class="tcell">R/W</td><td class="tcell">0x3</td><td class="tcell">CH3SEL</td><td class="tcell">DMA通道3源设备选择：选择DMA通道3关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[23：22]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[21:16]</td><td class="tcell">R/W</td><td class="tcell">0x2</td><td class="tcell">CH2SEL</td><td class="tcell">DMA通道2源设备选择：选择DMA通道2关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13:8]</td><td class="tcell">R/W</td><td class="tcell">0x1</td><td class="tcell">CH1SEL</td><td class="tcell">DMA通道1源设备选择：选择DMA通道1关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R/W</td><td class="tcell">0x0</td><td class="tcell">CH0SEL</td><td class="tcell">DMA通道0源设备选择：选择DMA通道0关联的外设功能</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-77"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">77</span>
+      <span>89</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-78"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">78</span>
+      <span>90</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>通道关联外设选择寄存器2 DMA_CHCFG2</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">heading 3_ch09</span><span class="num">9.7.12 </span>通道关联外设选择寄存器2 DMA_CHCFG2</p><div class="fmt">格式变更：文字加粗: 关→继承 ×23；段落段落样式: 标题3→heading 3_ch09；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>91</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13:8]</td><td class="tcell">R/W</td><td class="tcell">0x5</td><td class="tcell">CH5SEL</td><td class="tcell">DMA通道5源设备选择：选择DMA通道5关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R/W</td><td class="tcell">0x4</td><td class="tcell">CH4SEL</td><td class="tcell">DMA通道4源设备选择：选择DMA通道4关联的外设功能</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:14]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[13:8]</td><td class="tcell">R/W</td><td class="tcell">0x5</td><td class="tcell">CH5SEL</td><td class="tcell">DMA通道5源设备选择：选择DMA通道5关联的外设功能</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5:0]</td><td class="tcell">R/W</td><td class="tcell">0x4</td><td class="tcell">CH4SEL</td><td class="tcell">DMA通道4源设备选择：选择DMA通道4关联的外设功能</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-79"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">79</span>
+      <span>92</span>
+    </div>
+    <div class="cell left"><p class="para align-center"><span class="style-tag">表注</span>表9-1 DMA通道关联外设</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落_ch09</span><span class="num"></span>表9-1 DMA通道关联外设</p><div class="fmt">格式变更：文字颜色: 继承→000000 ×14；段落对齐方式: center→继承；段落段落样式: 表注→单段落_ch09；段落编号层级: 继承→0；段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>93</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">CHnSEL</td><td class="tcell">关联外设</td></tr><tr class="trow-equal"><td class="tcell">00000b</td><td class="tcell">SPI0 TX</td></tr><tr class="trow-equal"><td class="tcell">00001b</td><td class="tcell">SPI0 RX</td></tr><tr class="trow-equal"><td class="tcell">00010b</td><td class="tcell">SPI1 TX</td></tr><tr class="trow-equal"><td class="tcell">00011b</td><td class="tcell">SPI1 RX</td></tr><tr class="trow-equal"><td class="tcell">00100b</td><td class="tcell">I2C0 TX</td></tr><tr class="trow-equal"><td class="tcell">00101b</td><td class="tcell">I2C0 RX</td></tr><tr class="trow-equal"><td class="tcell">00110b</td><td class="tcell">I2C1 TX</td></tr><tr class="trow-equal"><td class="tcell">00111b</td><td class="tcell">I2C1 RX</td></tr><tr class="trow-equal"><td class="tcell">01000b</td><td class="tcell">MCPWM_REQ0</td></tr><tr class="trow-equal"><td class="tcell">01001b</td><td class="tcell">MCPWM_REQ1</td></tr><tr class="trow-equal"><td class="tcell">01010b</td><td class="tcell">TIMER13</td></tr><tr class="trow-equal"><td class="tcell">01011b</td><td class="tcell">TIMER14</td></tr><tr class="trow-equal"><td class="tcell">01100b</td><td class="tcell">TIMER15</td></tr><tr class="trow-equal"><td class="tcell">01101b</td><td class="tcell">TIMER16</td></tr><tr class="trow-equal"><td class="tcell">01110b</td><td class="tcell">UART0_TX</td></tr><tr class="trow-equal"><td class="tcell">01111b</td><td class="tcell">UART0_RX</td></tr><tr class="trow-equal"><td class="tcell">10000b</td><td class="tcell">UART1_TX</td></tr><tr class="trow-equal"><td class="tcell">10001b</td><td class="tcell">UART1_RX</td></tr><tr class="trow-equal"><td class="tcell">10010b</td><td class="tcell">ADC</td></tr><tr class="trow-equal"><td class="tcell">10011b ~ 11111b</td><td class="tcell">保留</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">CHnSEL</td><td class="tcell">关联外设</td></tr><tr class="trow-equal"><td class="tcell">00000b</td><td class="tcell">SPI0 TX</td></tr><tr class="trow-equal"><td class="tcell">00001b</td><td class="tcell">SPI0 RX</td></tr><tr class="trow-equal"><td class="tcell">00010b</td><td class="tcell">SPI1 TX</td></tr><tr class="trow-equal"><td class="tcell">00011b</td><td class="tcell">SPI1 RX</td></tr><tr class="trow-equal"><td class="tcell">00100b</td><td class="tcell">I2C0 TX</td></tr><tr class="trow-equal"><td class="tcell">00101b</td><td class="tcell">I2C0 RX</td></tr><tr class="trow-equal"><td class="tcell">00110b</td><td class="tcell">I2C1 TX</td></tr><tr class="trow-equal"><td class="tcell">00111b</td><td class="tcell">I2C1 RX</td></tr><tr class="trow-equal"><td class="tcell">01000b</td><td class="tcell">MCPWM_REQ0</td></tr><tr class="trow-equal"><td class="tcell">01001b</td><td class="tcell">MCPWM_REQ1</td></tr><tr class="trow-equal"><td class="tcell">01010b</td><td class="tcell">TIMER13</td></tr><tr class="trow-equal"><td class="tcell">01011b</td><td class="tcell">TIMER14</td></tr><tr class="trow-equal"><td class="tcell">01100b</td><td class="tcell">TIMER15</td></tr><tr class="trow-equal"><td class="tcell">01101b</td><td class="tcell">TIMER16</td></tr><tr class="trow-equal"><td class="tcell">01110b</td><td class="tcell">UART0_TX</td></tr><tr class="trow-equal"><td class="tcell">01111b</td><td class="tcell">UART0_RX</td></tr><tr class="trow-equal"><td class="tcell">10000b</td><td class="tcell">UART1_TX</td></tr><tr class="trow-equal"><td class="tcell">10001b</td><td class="tcell">UART1_RX</td></tr><tr class="trow-equal"><td class="tcell">10010b</td><td class="tcell">ADC</td></tr><tr class="trow-equal"><td class="tcell">10011b ~ 11111b</td><td class="tcell">保留</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-80"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">80</span>
+      <span>94</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1_ch09</span></p><div class="fmt">格式变更：段落段落样式: Normal→正文1_ch09</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>95</span>
+    </div>
+    <div class="cell left"><p class="para align-left">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-left">&nbsp;</p></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>21_MATH_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>21_MATH_20260923.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>94.4%</b></span>
+    <span class="chip ins">新增 <b>5</b></span>
+    <span class="chip del">删除 <b>3</b></span>
+    <span class="chip mod">修改 <b>50</b></span>
+    <span class="chip">格式变更 <b>84</b></span>
+    <span class="chip">表格变更 <b>0</b></span>
+    <span class="chip">共 <b>58</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 58</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>21_MATH_20261031.docx（基准）</div>
+  <div>21_MATH_20260923.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-modify changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>MATH</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题1</span><span class="num">21 </span>MATH</p><div class="fmt">格式变更：文字加粗: 关→开 ×4；段落编号层级: 继承→0</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>概述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">21.1 </span>概述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>简介</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.1.1 </span>简介</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-4"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">4</span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MATH是一个计算处理单元，提供了开方、除法、三角函数运算，MATH模块可以在不同中断程序和主程序中多次调用且计算结果互不干扰。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MATH是一个计算处理单元，提供了开方、除法、三角函数运算，MATH模块可以在不同中断程序和主程序中多次调用且计算结果互不干扰。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×64</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-5"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">5</span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>功能特点</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.1.2 </span>功能特点</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-6"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">6</span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>硬件加速，减少CPU负担</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>硬件加速，减少CPU负担</p><div class="fmt">格式变更：段落左缩进: 0 磅→22.1 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-7"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">7</span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>支持以下运算模式：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>支持以下运算模式：</p><div class="fmt">格式变更：段落左缩进: 0 磅→22.1 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-8"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">8</span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>16位开方运算</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="num"></span>16位开方运算</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7；段落段落样式: 单段落2→段落正文；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-9"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">9</span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>32位有符号除法</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="num"></span>32位有符号除法</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×8；段落段落样式: 单段落2→段落正文；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-10"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">10</span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落2</span><span class="num"></span>三角函数运算</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="num"></span>三角函数运算</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×6；段落段落样式: 单段落2→段落正文；段落左缩进: 48 磅→0 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-11"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">11</span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>功能描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">21.2 </span>功能描述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-12"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">12</span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>开方运算</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.2.1 </span>开方运算</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-13"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">13</span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>开方运算使用到MATH_SQRTRI寄存器作为输入，使用MATH_SQRTRO寄存器作为输出。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>开方运算使用到MATH_SQRTRI寄存器作为输入，使用MATH_SQRTRO寄存器作为输出。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×47</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表21-1</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表21-1</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">输入数据寄存器</td><td class="tcell">输入内容</td><td class="tcell">输出结果寄存器</td><td class="tcell">输出内容</td></tr><tr class="trow-equal"><td class="tcell">MATH_SQRTRI</td><td class="tcell">16无符号数</td><td class="tcell">MATH_SQRTRO</td><td class="tcell">16位无符号数</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">输入数据寄存器</td><td class="tcell">输入内容</td><td class="tcell">输出结果寄存器</td><td class="tcell">输出内容</td></tr><tr class="trow-equal"><td class="tcell">MATH_SQRTRI</td><td class="tcell">16无符号数</td><td class="tcell">MATH_SQRTRO</td><td class="tcell">16位无符号数</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-14"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">14</span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">注意事项</span><span class="num"></span>注：当输入不完美开方值时，会舍去小数部分只保留整数值输出。例如输入35，输出结果为5。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>注：当输入不完美开方值时，会舍去小数部分只保留整数值输出。例如输入35，输出结果为5。</p><div class="fmt">格式变更：文字加粗: 开→继承 ×43；文字字号: 9 磅→12 磅 ×43；段落段落样式: 注意事项→段落正文；段落编号层级: 0→继承</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-15"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">15</span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"><br></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-16"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">16</span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>除法运算</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.2.2 </span>除法运算</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-17"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">17</span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>除法运算使用到MATH_DIVIDE和MATH_DIVIDS寄存器分别作为被除数和除数的输入，MATH_QUOTI寄存器为商输出值，MATH_REMAIN寄存器位余数输出值。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>除法运算使用到MATH_DIVIDE和MATH_DIVIDS寄存器分别作为被除数和除数的输入，MATH_QUOTI寄存器为商输出值，MATH_REMAIN寄存器位余数输出值。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×87</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表21-2</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表21-2</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">输入数据寄存器</td><td class="tcell">输入内容</td><td class="tcell">输出结果寄存器</td><td class="tcell">输出内容</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDE</td><td class="tcell">32位有符号数</td><td class="tcell">MATH_QUOTI</td><td class="tcell">32位有符号数</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDS</td><td class="tcell">32位有符号数</td><td class="tcell">MATH_REMAIN</td><td class="tcell">32位有符号数</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">输入数据寄存器</td><td class="tcell">输入内容</td><td class="tcell">输出结果寄存器</td><td class="tcell">输出内容</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDE</td><td class="tcell">32位有符号数</td><td class="tcell">MATH_QUOTI</td><td class="tcell">32位有符号数</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDS</td><td class="tcell">32位有符号数</td><td class="tcell">MATH_REMAIN</td><td class="tcell">32位有符号数</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-18"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">18</span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">注意事项</span><span class="num"></span>注：该除法运算中，若除数设置为0，则MATH_IR寄存器的DIVI_ERR位会被置位，且运算结果会输出错误值（商：0x7FFF_FFFF余数0x0000_0064）。且在常规带符号运算时，余数存在负数情况。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>注：该除法运算中，若除数设置为0，则MATH_IR寄存器的DIVI_ERR位会被置位，且运算结果会输出错误值（商：0x7FFF_FFFF余数0x0000_0064）。且在常规带符号运算时，余数存在负数情况。</p><div class="fmt">格式变更：文字加粗: 开→继承 ×103；文字字号: 9 磅→12 磅 ×103；段落段落样式: 注意事项→段落正文；段落编号层级: 0→继承</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-19"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">19</span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>三角函数运算</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.2.3 </span>三角函数运算</p><div class="fmt">格式变更：文字加粗: 关→继承 ×6；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-20"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">20</span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>三角函数运算使用到MATH_THETA寄存器作为角度输入。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>三角函数运算使用到MATH_THETA寄存器作为角度输入。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×29</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>25</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表21-3</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表21-3</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>26</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">输入数据寄存器</td><td class="tcell">输入内容</td><td class="tcell">输出结果寄存器</td><td class="tcell">输出内容</td></tr><tr class="trow-equal"><td class="tcell">MATH_THETA</td><td class="tcell">16位无符号数</td><td class="tcell">MATH_SINCOS（高16位）</td><td class="tcell">16位有符号数</td></tr><tr class="trow-equal"><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">MATH_SINCOS（低16位）</td><td class="tcell">16位有符号数</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">输入数据寄存器</td><td class="tcell">输入内容</td><td class="tcell">输出结果寄存器</td><td class="tcell">输出内容</td></tr><tr class="trow-equal"><td class="tcell">MATH_THETA</td><td class="tcell">16位无符号数</td><td class="tcell">MATH_SINCOS（高16位）</td><td class="tcell">16位有符号数</td></tr><tr class="trow-equal"><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">MATH_SINCOS（低16位）</td><td class="tcell">16位有符号数</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-21"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">21</span>
+      <span>27</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">注意事项</span><span class="num"></span>注：MATH_THETA的16位角度输入范围，对应的输入值0-65535映射到角度的0°~ 360°，角度输入可以使用MATH_THETA=（ANGLE*65535）/360。SIN_OUT和COS_OUT实数的输出范围是-1.0～1.0，对应寄存器的0x0～0x7FFF，16位输出的最高位都是符号位。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>注：MATH_THETA的16位角度输入范围，对应的输入值0-65535映射到角度的0°~ 360°，角度输入可以使用MATH_THETA=（ANGLE*65535）/360。SIN_OUT和COS_OUT实数的输出范围是-1.0～1.0，对应寄存器的0x0～0x7FFF，16位输出的最高位都是符号位。</p><div class="fmt">格式变更：文字加粗: 开→继承 ×152；文字字号: 9 磅→12 磅 ×152；段落段落样式: 注意事项→段落正文；段落编号层级: 0→继承</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-22"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">22</span>
+      <span>28</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器列表</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">21.3 </span>寄存器列表</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-23"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">23</span>
+      <span>29</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MATH在芯片中的基地址是0x4000_6000</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MATH在芯片中的基地址是0x4000_6000</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×24</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>30</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表21-4MATH寄存器地址分配</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表21-4MATH寄存器地址分配</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>31</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">&nbsp;&nbsp;&nbsp;&nbsp;偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">MATH_IR</td><td class="tcell">0x04</td><td class="tcell">算数中断标志寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_IE</td><td class="tcell">0x08</td><td class="tcell">算数中断使能寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_SQRTRI</td><td class="tcell">0x0C</td><td class="tcell">开方运算输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_SQRTRO</td><td class="tcell">0x10</td><td class="tcell">开方运算结果输出寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDE</td><td class="tcell">0x14</td><td class="tcell">除法被除数输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDS</td><td class="tcell">0x18</td><td class="tcell">除法除数输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_QUOTI</td><td class="tcell">0x1C</td><td class="tcell">商输出寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_REMAIN</td><td class="tcell">0x20</td><td class="tcell">余数输出寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_THETA</td><td class="tcell">0x24</td><td class="tcell">角度输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_SINCOS</td><td class="tcell">0x28</td><td class="tcell">正余弦结果寄存器</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">&nbsp;&nbsp;&nbsp;&nbsp;偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">MATH_IR</td><td class="tcell">0x04</td><td class="tcell">算数中断标志寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_IE</td><td class="tcell">0x08</td><td class="tcell">算数中断使能寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_SQRTRI</td><td class="tcell">0x0C</td><td class="tcell">开方运算输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_SQRTRO</td><td class="tcell">0x10</td><td class="tcell">开方运算结果输出寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDE</td><td class="tcell">0x14</td><td class="tcell">除法被除数输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_DIVIDS</td><td class="tcell">0x18</td><td class="tcell">除法除数输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_QUOTI</td><td class="tcell">0x1C</td><td class="tcell">商输出寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_REMAIN</td><td class="tcell">0x20</td><td class="tcell">余数输出寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_THETA</td><td class="tcell">0x24</td><td class="tcell">角度输入寄存器</td></tr><tr class="trow-equal"><td class="tcell">MATH_SINCOS</td><td class="tcell">0x28</td><td class="tcell">正余弦结果寄存器</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-24"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">24</span>
+      <span>32</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-25"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">25</span>
+      <span>33</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"><br></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-26"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">26</span>
+      <span>34</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>MATH寄存器描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">21.4 </span>MATH寄存器描述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×9；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-27"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">27</span>
+      <span>35</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH寄存器描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.1 </span>MATH寄存器描述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×9；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-28"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">28</span>
+      <span>36</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6004</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6004</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-29"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">29</span>
+      <span>37</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>38</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:9]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SINCOS_RDY</td><td class="tcell">三角函数运算已就绪</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">DIVI_ERR</td><td class="tcell">除法运算错误</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">DIVI_RDY</td><td class="tcell">除法运算已就绪</td></tr><tr class="trow-equal"><td class="tcell">[3:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SQRT_RDY</td><td class="tcell">开方运算已就绪</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:9]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[8]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SINCOS_RDY</td><td class="tcell">三角函数运算已就绪</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[5]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">DIVI_ERR</td><td class="tcell">除法运算错误</td></tr><tr class="trow-equal"><td class="tcell">[4]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">DIVI_RDY</td><td class="tcell">除法运算已就绪</td></tr><tr class="trow-equal"><td class="tcell">[3:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SQRT_RDY</td><td class="tcell">开方运算已就绪</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-30"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">30</span>
+      <span>39</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_SQRTRI开方运算输入寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.2 </span>MATH_SQRTRI开方运算输入寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×20；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-31"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">31</span>
+      <span>40</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_600C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_600C</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-32"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">32</span>
+      <span>41</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>42</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SQRT_IN</td><td class="tcell">开方运算输入值，输入被开方数</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">SQRT_IN</td><td class="tcell">开方运算输入值，输入被开方数</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-33"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">33</span>
+      <span>43</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-34"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">34</span>
+      <span>44</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_SQRTRO开方运算结果输出寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.3 </span>MATH_SQRTRO开方运算结果输出寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×22；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-35"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">35</span>
+      <span>45</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6010</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6010</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-36"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">36</span>
+      <span>46</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>47</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SQRT_OUT</td><td class="tcell">开方运算结果输出值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SQRT_OUT</td><td class="tcell">开方运算结果输出值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-37"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">37</span>
+      <span>48</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_DIVIDE除法被除数输入寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.4 </span>MATH_DIVIDE除法被除数输入寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×21；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-38"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">38</span>
+      <span>49</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6014</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6014</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-39"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">39</span>
+      <span>50</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>51</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">DIVIDE_IN</td><td class="tcell">除法运算被除数输入值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">DIVIDE_IN</td><td class="tcell">除法运算被除数输入值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-40"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">40</span>
+      <span>52</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-41"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">41</span>
+      <span>53</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"><br></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-42"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">42</span>
+      <span>54</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_DIVIDS除法除数输入寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.5 </span>MATH_DIVIDS除法除数输入寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×20；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-43"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">43</span>
+      <span>55</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6018</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6018</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-44"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">44</span>
+      <span>56</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>57</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">DIVIDS_IN</td><td class="tcell">除法运算除数输入值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">DIVIDS_IN</td><td class="tcell">除法运算除数输入值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-45"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">45</span>
+      <span>58</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_QUOTI商输出寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.6 </span>MATH_QUOTI商输出寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×16；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-46"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">46</span>
+      <span>59</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_601C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_601C</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-47"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">47</span>
+      <span>60</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>61</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">QUOTI_OUT</td><td class="tcell">除法运算商输出值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">QUOTI_OUT</td><td class="tcell">除法运算商输出值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-48"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">48</span>
+      <span>62</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-49"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">49</span>
+      <span>63</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_REMAIN余数输出寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.7 </span>MATH_REMAIN余数输出寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×18；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-50"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">50</span>
+      <span>64</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6020</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6020</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-51"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">51</span>
+      <span>65</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>66</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">REMAIN_OUT</td><td class="tcell">除法运算余数输出值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">REMAIN_OUT</td><td class="tcell">除法运算余数输出值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-52"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">52</span>
+      <span>67</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_THETA角度输入寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.8 </span>MATH_THETA角度输入寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×17；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-53"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">53</span>
+      <span>68</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6024</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6024</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-54"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">54</span>
+      <span>69</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>70</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ANGLE_IN</td><td class="tcell">三角函数运算角度输入值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ANGLE_IN</td><td class="tcell">三角函数运算角度输入值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-55"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">55</span>
+      <span>71</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MATH_SINCOS正余弦结果寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">21.4.9 </span>MATH_SINCOS正余弦结果寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×19；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-56"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">56</span>
+      <span>72</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6028</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6028</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-57"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">57</span>
+      <span>73</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>74</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell" colspan="2">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">RO</td><td class="tcell">16’h7FFF</td><td class="tcell">COS_OUT</td><td class="tcell" colspan="2">三角函数cos运算输出值</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SIN_OUT</td><td class="tcell" colspan="2">三角函数sin运算输出值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell" colspan="2">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">RO</td><td class="tcell">16’h7FFF</td><td class="tcell">COS_OUT</td><td class="tcell" colspan="2">三角函数cos运算输出值</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">SIN_OUT</td><td class="tcell" colspan="2">三角函数sin运算输出值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>75</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>&nbsp;</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>&nbsp;</p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-58"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">58</span>
+      <span>76</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>

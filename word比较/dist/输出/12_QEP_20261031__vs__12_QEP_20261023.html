@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>12_QEP_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>12_QEP_20261023.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>94.0%</b></span>
+    <span class="chip ins">新增 <b>7</b></span>
+    <span class="chip del">删除 <b>2</b></span>
+    <span class="chip mod">修改 <b>49</b></span>
+    <span class="chip">格式变更 <b>74</b></span>
+    <span class="chip">表格变更 <b>0</b></span>
+    <span class="chip">共 <b>58</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 58</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>12_QEP_20261031.docx（基准）</div>
+  <div>12_QEP_20261023.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-modify changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>QEP</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题1</span><span class="num">12 </span>QEP</p><div class="fmt">格式变更：文字加粗: 关→开 ×3；文字下划线: 继承→关 ×3；文字字体: 黑体→Times New Roman ×3；文字颜色: 继承→0000FF ×3；段落编号层级: 继承→0</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>概述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">12.1 </span>概述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>编码器接口支持正交编码信号、符号加脉冲信号、CW/CCW双脉冲信号三种模式。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>编码器接口支持正交编码信号、符号加脉冲信号、CW/CCW双脉冲信号三种模式。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×38</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-4"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">4</span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>QEP的输入信号T1/T2/Z 分别来自对应的 GPIO 输入，并经过内部的滤波系数控制。 </p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>QEP的输入信号T1/T2/Z 分别来自对应的 GPIO 输入，并经过内部的滤波系数控制。 </p><div class="fmt">格式变更：文字颜色: 000000→继承 ×46</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-5"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">5</span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>实现说明</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">12.2 </span>实现说明</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-6"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">6</span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>正交编码信号</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.2.1 </span>正交编码信号</p><div class="fmt">格式变更：文字加粗: 关→继承 ×6；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-7"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">7</span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>正交编码信号多用于计数编码器圈数，输入为T1/T2两个信号，支持下表中两个模式。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>正交编码信号多用于计数编码器圈数，输入为T1/T2两个信号，支持下表中两个模式。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×40</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-8"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">8</span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>概括来讲，T1/T2的跳变沿会导致计数器递增或递减。而计数器计数方向（递增或递减）由跳 变信号之外的另一个稳态信号的电平高低决定。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>概括来讲，T1/T2的跳变沿会导致计数器递增或递减。而计数器计数方向（递增或递减）由跳 变信号之外的另一个稳态信号的电平高低决定。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×65</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-9"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">9</span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>如果T1 发生了上升沿跳变，则看T2 是高电平还是低电平，如果是高电平则计数器递减，如 果是低电平计数器递增，T1下降沿计数器变化相反。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>如果T1 发生了上升沿跳变，则看T2 是高电平还是低电平，如果是高电平则计数器递减，如 果是低电平计数器递增，T1下降沿计数器变化相反。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×68</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-10"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">10</span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>如果T2 发生了上升沿跳变，则看T1 是高电平还是低电平，如果是高电平则计数器递增，如果是低电平计数器递减，T2下降沿计数器变化相反。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>如果T2 发生了上升沿跳变，则看T1 是高电平还是低电平，如果是高电平则计数器递增，如果是低电平计数器递减，T2下降沿计数器变化相反。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×67</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-11"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">11</span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>逻辑关系如下公式所示：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>逻辑关系如下公式所示：</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×11</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-12"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">12</span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>Counter Up = (T1 !=T2) @(T1 triggering edges) | (T1 == T2) @ (T2 triggering edges) Counter Down = (T1 == T2) @ (T1 triggering edges) | (T1 != T2) @ (T2 triggering edges)</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>Counter Up = (T1 !=T2) @(T1 triggering edges) | (T1 == T2) @ (T2 triggering edges) Counter Down = (T1 == T2) @ (T1 triggering edges) | (T1 !<span class="ins"> </span>= T2) @ (T2 triggering edges)</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×169</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表12-1 编码器正交编码工作模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表12-1 编码器正交编码工作模式</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">计数模式</td><td class="tcell">T1/T2电平状态（稳态信号）</td><td class="tcell" colspan="2">T1变化边沿状态</td><td class="tcell" colspan="2">T2变化边沿状态</td></tr><tr class="trow-equal"><td class="merged"></td><td class="merged"></td><td class="tcell">上升沿</td><td class="tcell">下降沿</td><td class="tcell">上升沿</td><td class="tcell">下降沿</td></tr><tr class="trow-equal"><td class="tcell">仅T1计数</td><td class="tcell">T2高</td><td class="tcell">递减</td><td class="tcell">递增</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T2低</td><td class="tcell">递增</td><td class="tcell">递减</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="tcell">T1/T2都计数</td><td class="tcell">T2高</td><td class="tcell">递减</td><td class="tcell">递增</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T2低</td><td class="tcell">递增</td><td class="tcell">递减</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T1高</td><td class="tcell">不计数</td><td class="tcell">不计数</td><td class="tcell">递增</td><td class="tcell">递减</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T1低</td><td class="tcell">不计数</td><td class="tcell">不计数</td><td class="tcell">递减</td><td class="tcell">递增</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">计数模式</td><td class="tcell">T1/T2电平状态（稳态信号）</td><td class="tcell" colspan="2">T1变化边沿状态</td><td class="tcell" colspan="2">T2变化边沿状态</td></tr><tr class="trow-equal"><td class="merged"></td><td class="merged"></td><td class="tcell">上升沿</td><td class="tcell">下降沿</td><td class="tcell">上升沿</td><td class="tcell">下降沿</td></tr><tr class="trow-equal"><td class="tcell">仅T1计数</td><td class="tcell">T2高</td><td class="tcell">递减</td><td class="tcell">递增</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T2低</td><td class="tcell">递增</td><td class="tcell">递减</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="tcell">T1/T2都计数</td><td class="tcell">T2高</td><td class="tcell">递减</td><td class="tcell">递增</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T2低</td><td class="tcell">递增</td><td class="tcell">递减</td><td class="tcell">不计数</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T1高</td><td class="tcell">不计数</td><td class="tcell">不计数</td><td class="tcell">递增</td><td class="tcell">递减</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T1低</td><td class="tcell">不计数</td><td class="tcell">不计数</td><td class="tcell">递减</td><td class="tcell">递增</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-13"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">13</span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span></p><div class="fmt">格式变更：段落段落样式: Normal→表注</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left">&nbsp;</p></div>
+    <div class="cell right"><p class="para align-left"><br></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-14"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">14</span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span></p><div class="fmt">格式变更：段落对齐方式: center→继承；段落段落样式: Normal→图注</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图12-1编码器只在T1时刻计数的正交编码信号计数情况</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图12-1编码器只在T1时刻计数的正交编码信号计数情况</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-15"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">15</span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span></p><div class="fmt">格式变更：段落对齐方式: center→继承；段落段落样式: Normal→图注</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图12-2 编码器在T1或T2时刻计数的正交编码信号计数情况</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图12-2 编码器在T1或T2时刻计数的正交编码信号计数情况</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-16"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">16</span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>符号加脉冲信号</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.2.2 </span>符号加脉冲信号</p><div class="fmt">格式变更：文字加粗: 关→继承 ×7；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-17"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">17</span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>这种工作模式下，T1为脉冲信号，T2为符号信号。T1的边沿触发计数，T2电平控制计数方 向，高则递增，低则递减。可以配置仅T1上升沿计数还是T1上升下降沿都计数。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>这种工作模式下，T1为脉冲信号，T2为符号信号。T1的边沿触发计数，T2电平控制计数方 向，高则递增，低则递减。可以配置仅T1上升沿计数还是T1上升下降沿都计数。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×81</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-18"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">18</span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>Counter Up = (T2==1) @ (T1 triggering edges)</p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">段落正文</span>Counter Up = (T2==1) @ (T1 triggering edges)</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×44；段落对齐方式: 继承→center</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-19"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">19</span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>Counter Down = (T2==0) @ (T1 triggering edges)</p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">段落正文</span>Counter Down = (T2==0) @ (T1 triggering edges)</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×46；段落对齐方式: 继承→center</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>25</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表12-2 编码器符号加脉冲工作模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表12-2 编码器符号加脉冲工作模式</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>26</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">计数模式</td><td class="tcell">T2电平状态（稳态信号）</td><td class="tcell" colspan="2">T1变化边沿状态</td></tr><tr class="trow-equal"><td class="merged"></td><td class="merged"></td><td class="tcell">上升沿</td><td class="tcell">下降沿</td></tr><tr class="trow-equal"><td class="tcell">仅T1上升沿</td><td class="tcell">高</td><td class="tcell">递增</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">低</td><td class="tcell">递减</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="tcell">T1上升下降沿</td><td class="tcell">高</td><td class="tcell">递增</td><td class="tcell">递减</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">低</td><td class="tcell">递减</td><td class="tcell">递增</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">计数模式</td><td class="tcell">T2电平状态（稳态信号）</td><td class="tcell" colspan="2">T1变化边沿状态</td></tr><tr class="trow-equal"><td class="merged"></td><td class="merged"></td><td class="tcell">上升沿</td><td class="tcell">下降沿</td></tr><tr class="trow-equal"><td class="tcell">仅T1上升沿</td><td class="tcell">高</td><td class="tcell">递增</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">低</td><td class="tcell">递减</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="tcell">T1上升下降沿</td><td class="tcell">高</td><td class="tcell">递增</td><td class="tcell">递减</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">低</td><td class="tcell">递减</td><td class="tcell">递增</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-20"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">20</span>
+      <span>27</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span></p><div class="fmt">格式变更：段落段落样式: Normal→表注</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-21"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">21</span>
+      <span>28</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"><br></span></p><div class="fmt">格式变更：段落对齐方式: center→继承</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-22"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">22</span>
+      <span>29</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-23"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">23</span>
+      <span>30</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>31</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图12-3 编码器在T1上升下降沿都计数的符号加脉冲信号计数情况</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图12-3 编码器在T1上升下降沿都计数的符号加脉冲信号计数情况</p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-24"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">24</span>
+      <span>32</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-25"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">25</span>
+      <span>33</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span></p><div class="fmt">格式变更：段落对齐方式: center→继承；段落段落样式: Normal→图注</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>34</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图12-4 编码器在仅T1上升沿计数的符号加脉冲信号计数情况</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图12-4 编码器在仅T1上升沿计数的符号加脉冲信号计数情况</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-26"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">26</span>
+      <span>35</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>CCW/CW双脉冲信号</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.2.3 </span>CCW/CW双脉冲信号</p><div class="fmt">格式变更：文字加粗: 关→继承 ×11；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-27"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">27</span>
+      <span>36</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>在T1跳变时计数器递增，在T2跳变时计数器递减。可以配置计数器仅在上升沿变化或者在 上升下降沿都变化。以下式表示</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>在T1跳变时计数器递增，在T2跳变时计数器递减。可以配置计数器仅在上升沿变化或者在 上升下降沿都变化。以下式表示</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×56</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-28"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">28</span>
+      <span>37</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>Counter Up = 1 @ (T1 triggering edges)</p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">段落正文</span>Counter Up = 1 @ (T1 triggering edges)</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×38；段落对齐方式: 继承→center</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-29"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">29</span>
+      <span>38</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>Counter Down = 1 @ (T2 triggering edges)</p></div>
+    <div class="cell right"><p class="para align-center"><span class="style-tag">段落正文</span>Counter Down = 1 @ (T2 triggering edges)</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×40；段落对齐方式: 继承→center</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>39</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表12-3 编码器CCW/CW双脉冲工作模式</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表12-3 编码器CCW/CW双脉冲工作模式</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>40</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">计数模式</td><td class="tcell" colspan="4">变化边沿状态</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T1上升沿</td><td class="tcell">T1下降沿</td><td class="tcell">T2上升沿</td><td class="tcell">T2下降沿</td></tr><tr class="trow-equal"><td class="tcell">T1/T2上升沿</td><td class="tcell">递增</td><td class="tcell">不计数</td><td class="tcell">递减</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="tcell">T1/T2上升下降沿</td><td class="tcell">递增</td><td class="tcell">递增</td><td class="tcell">递减</td><td class="tcell">递减</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">计数模式</td><td class="tcell" colspan="4">变化边沿状态</td></tr><tr class="trow-equal"><td class="merged"></td><td class="tcell">T1上升沿</td><td class="tcell">T1下降沿</td><td class="tcell">T2上升沿</td><td class="tcell">T2下降沿</td></tr><tr class="trow-equal"><td class="tcell">T1/T2上升沿</td><td class="tcell">递增</td><td class="tcell">不计数</td><td class="tcell">递减</td><td class="tcell">不计数</td></tr><tr class="trow-equal"><td class="tcell">T1/T2上升下降沿</td><td class="tcell">递增</td><td class="tcell">递增</td><td class="tcell">递减</td><td class="tcell">递减</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-30"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">30</span>
+      <span>41</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span></p><div class="fmt">格式变更：段落段落样式: Normal→表注</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>42</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><br></p></div>
+    <div class="cell right"><p class="para align-left"><br></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-31"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">31</span>
+      <span>43</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span></p><div class="fmt">格式变更：段落对齐方式: center→继承；段落段落样式: Normal→图注</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-32"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">32</span>
+      <span>44</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>45</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图12-5 编码器仅在T1/T2上升下降沿计数的CCW/CW双脉冲信号计数情况</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图12-5 编码器仅在T1/T2上升下降沿计数的CCW/CW双脉冲信号计数情况</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-33"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">33</span>
+      <span>46</span>
+    </div>
+    <div class="cell left"><p class="para align-center"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span></p><div class="fmt">格式变更：段落对齐方式: center→继承；段落段落样式: Normal→图注</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>47</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图12-6编码器仅在T1/T2上升沿计数的CCW/CW双脉冲信号计数情况</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图12-6编码器仅在T1/T2上升沿计数的CCW/CW双脉冲信号计数情况</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-34"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">34</span>
+      <span>48</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器列表</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">12.3 </span>寄存器列表</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-35"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">35</span>
+      <span>49</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>QEP 模块寄存器的基地址是0x4000_6400，寄存器列表如下:</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>QEP 模块寄存器的基地址是0x4000_6400，寄存器列表如下:</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×34</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>50</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表12-4 QEP 模块寄存器地址分配</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表12-4 QEP 模块寄存器地址分配</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>51</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">QEP_CFG</td><td class="tcell">0x30</td><td class="tcell">QEP 模块配置寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_TH</td><td class="tcell">0x34</td><td class="tcell">QEP 门限值寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_CNT</td><td class="tcell">0x38</td><td class="tcell">QEP 计数值寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_IE</td><td class="tcell">0x3C</td><td class="tcell">QEP 中断使能寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_IF</td><td class="tcell">0x40</td><td class="tcell">QEP 中断标志寄存器</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">QEP_CFG</td><td class="tcell">0x30</td><td class="tcell">QEP 模块配置寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_TH</td><td class="tcell">0x34</td><td class="tcell">QEP 门限值寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_CNT</td><td class="tcell">0x38</td><td class="tcell">QEP 计数值寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_IE</td><td class="tcell">0x3C</td><td class="tcell">QEP 中断使能寄存器</td></tr><tr class="trow-equal"><td class="tcell">QEP_IF</td><td class="tcell">0x40</td><td class="tcell">QEP 中断标志寄存器</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-36"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">36</span>
+      <span>52</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"><br></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-37"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">37</span>
+      <span>53</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">12.4 </span>寄存器描述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-38"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">38</span>
+      <span>54</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>QEP_CFG   QEP模块配置寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.4.1 </span>QEP_CFG   QEP模块配置寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×20；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-39"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">39</span>
+      <span>55</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6430</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6430</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-40"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">40</span>
+      <span>56</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-41"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">41</span>
+      <span>57</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"><br></span></p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>58</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[30:20]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">QEP_FLT</td><td class="tcell">滤波宽度，低于对应脉冲宽度的信号将被硬件自动过滤掉。滤波宽度的计算公式为[10:0] + 1。</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18:16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">QEP_CLKDIV</td><td class="tcell">QEP时钟分频系数。默认不分频。<br>00:不分频<br>01:2分频<br>10:4分频<br>11:8分频</td></tr><tr class="trow-equal"><td class="tcell">[15]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">QEP_EN</td><td class="tcell">QEP模块整体使能</td></tr><tr class="trow-equal"><td class="tcell">[14:11]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FE_CNT_EN</td><td class="tcell">CCW+SIGN/CCW+CW 两种模式下，是否在下降沿进行计数（上升沿 总是计数）</td></tr><tr class="trow-equal"><td class="tcell">[9:8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MODE</td><td class="tcell">编码器模式选择 <br>00：counting on T1 <br>01：counting on T1 &amp; T2 以上两种模式都为正交编码信号计数模式 <br>10：CCW+SIGN，符号加脉冲信号计数模式 <br>11：CCW+CW，CCW+CW 双脉冲信号计数模式</td></tr><tr class="trow-equal"><td class="tcell">[7:4]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZNC</td><td class="tcell">Z 信号清零极性选择：低电平/下降沿清零使能</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZPC</td><td class="tcell">Z 信号清零极性选择：高电平/上升沿清零使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZLC</td><td class="tcell">Z 信号电平清零QEP计数器使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZEC</td><td class="tcell">Z 信号边沿清零QEP计数器使能</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[30:20]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">QEP_FLT</td><td class="tcell">滤波宽度，低于对应脉冲宽度的信号将被硬件自动过滤掉。滤波宽度的计算公式为[10:0] + 1。</td></tr><tr class="trow-equal"><td class="tcell">[19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18:16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">QEP_CLKDIV</td><td class="tcell">QEP时钟分频系数。默认不分频。<br>00:不分频<br>01:2分频<br>10:4分频<br>11:8分频</td></tr><tr class="trow-equal"><td class="tcell">[15]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">QEP_EN</td><td class="tcell">QEP模块整体使能</td></tr><tr class="trow-equal"><td class="tcell">[14:11]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[10]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">FE_CNT_EN</td><td class="tcell">CCW+SIGN/CCW+CW 两种模式下，是否在下降沿进行计数（上升沿 总是计数）</td></tr><tr class="trow-equal"><td class="tcell">[9:8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">MODE</td><td class="tcell">编码器模式选择 <br>00：counting on T1 <br>01：counting on T1 &amp; T2 以上两种模式都为正交编码信号计数模式 <br>10：CCW+SIGN，符号加脉冲信号计数模式 <br>11：CCW+CW，CCW+CW 双脉冲信号计数模式</td></tr><tr class="trow-equal"><td class="tcell">[7:4]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZNC</td><td class="tcell">Z 信号清零极性选择：低电平/下降沿清零使能</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZPC</td><td class="tcell">Z 信号清零极性选择：高电平/上升沿清零使能</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZLC</td><td class="tcell">Z 信号电平清零QEP计数器使能</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">ZEC</td><td class="tcell">Z 信号边沿清零QEP计数器使能</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-42"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">42</span>
+      <span>59</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>当ZEC=1 时，使用Z信号的跳变沿进行QEP计数的清零，当ZNC同时为1时，Z信号的下降沿清 零QEP 计数器，当ZPC 同时为1 时，Z 信号的上升沿清零QEP 计数器；ZNC 和ZPC 可以同时为 1，则Z信号发生变化则清零QEP计数器，清零后立即释放复位，QEP计数器立即准备好进行后续 计数。 当ZLC=1 时，使用Z信号的有效电平进行QEP计数的清零，当ZNC同时为1时，Z信号低电平时 清零QEP计数器，当ZPC同时为1时，Z信号高电平清零QEP计数器；通常使用Z信号有效电平 清零QEP 计数器时，ZNC 和ZPC 不会同时为1，否则计数器一直处于清零状态。使用有效电平清 零时，只有Z信号翻转后，QEP计数器才会恢复计数。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>当ZEC=1 时，使用Z信号的跳变沿进行QEP计数的清零，当ZNC同时为1时，Z信号的下降沿清 零QEP 计数器，当ZPC 同时为1 时，Z 信号的上升沿清零QEP 计数器；ZNC 和ZPC 可以同时为 1，则Z信号发生变化则清零QEP计数器，清零后立即释放复位，QEP计数器立即准备好进行后续 计数。 当ZLC=1 时，使用Z信号的有效电平进行QEP计数的清零，当ZNC同时为1时，Z信号低电平时 清零QEP计数器，当ZPC同时为1时，Z信号高电平清零QEP计数器；通常使用Z信号有效电平 清零QEP 计数器时，ZNC 和ZPC 不会同时为1，否则计数器一直处于清零状态。使用有效电平清 零时，只有Z信号翻转后，QEP计数器才会恢复计数。</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×320</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-43"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">43</span>
+      <span>60</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>QEP_TH   QEP门限值寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.4.2 </span>QEP_TH   QEP门限值寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×18；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-44"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">44</span>
+      <span>61</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6434</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6434</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-45"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">45</span>
+      <span>62</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>63</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">TH</td><td class="tcell">计数门限TH。编码器向上计数（增）到TH 值后，再次向上计数会 导致计数器回到0。编码器向下计数（减）到0值后，再次向下计数 会导致计数器回到TH。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">TH</td><td class="tcell">计数门限TH。编码器向上计数（增）到TH 值后，再次向上计数会 导致计数器回到0。编码器向下计数（减）到0值后，再次向下计数 会导致计数器回到TH。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-46"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">46</span>
+      <span>64</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-47"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">47</span>
+      <span>65</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>QEP_CNT   QEP计数值寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.4.3 </span>QEP_CNT   QEP计数值寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×19；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-48"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">48</span>
+      <span>66</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6438</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6438</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-49"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">49</span>
+      <span>67</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>68</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CNT</td><td class="tcell">QEP计数值</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:16]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[15:0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">CNT</td><td class="tcell">QEP计数值</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-50"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">50</span>
+      <span>69</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-51"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">51</span>
+      <span>70</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>QEP_IE   QEP中断使能寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.4.4 </span>QEP_IE   QEP中断使能寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×19；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-52"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">52</span>
+      <span>71</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_643C</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_643C</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-53"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">53</span>
+      <span>72</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>73</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:2]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">OF_IE</td><td class="tcell">上溢出中断使能，高电平有效。</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">UF_IE</td><td class="tcell">下溢出中断使能，高电平有效。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:2]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">OF_IE</td><td class="tcell">上溢出中断使能，高电平有效。</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">UF_IE</td><td class="tcell">下溢出中断使能，高电平有效。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-54"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">54</span>
+      <span>74</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>QEP_IF   QEP中断标志寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">12.4.5 </span>QEP_IF   QEP中断标志寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×19；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-55"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">55</span>
+      <span>75</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6440</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_6440</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×14</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-56"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">56</span>
+      <span>76</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0</p><div class="fmt">格式变更：文字颜色: 000000→继承 ×7</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>77</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:2]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">OF_IF</td><td class="tcell">上溢出中断标志。高电平有效，写1清0。当计数器计数达到计数门 限时，上计数事件触发上溢出中断。</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">UF_IF</td><td class="tcell">下溢出中断标志。高电平有效，写1清0。当计数器计数达到0时， 下计数事件触发下溢出中断。</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:2]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">OF_IF</td><td class="tcell">上溢出中断标志。高电平有效，写1清0。当计数器计数达到计数门 限时，上计数事件触发上溢出中断。</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RW1C</td><td class="tcell">0</td><td class="tcell">UF_IF</td><td class="tcell">下溢出中断标志。高电平有效，写1清0。当计数器计数达到0时， 下计数事件触发下溢出中断。</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-57"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">57</span>
+      <span>78</span>
+    </div>
+    <div class="cell left"><p class="para align-left"></p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">正文1</span></p><div class="fmt">格式变更：段落段落样式: Normal→正文1</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-58"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">58</span>
+      <span>79</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span><span class="ins"></span></p></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>

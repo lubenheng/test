@@ -2557,12 +2557,10 @@ def _apply_numbering_starts(document, starts: dict[str, dict[int, int]]) -> None
                     _set_level_start(inner, str(value))
 
 
-def _strip_trailing_page_breaks(document) -> None:
-    """去掉章节末尾仅含分页符（或空白）的段落，避免拆分后多出一页空白。"""
+def _paragraph_without_content(paragraph_el) -> bool:
+    """段落除分页符、空白、书签/校对标记外没有别的内容。"""
     from docx.oxml.ns import qn
-    from docx.text.paragraph import Paragraph
 
-    body = document.element.body
     harmless = {
         qn("w:p"),
         qn("w:r"),
@@ -2574,31 +2572,214 @@ def _strip_trailing_page_breaks(document) -> None:
         qn("w:bookmarkEnd"),
         qn("w:proofErr"),
     }
+    nodes = [
+        node
+        for node in paragraph_el.iter()
+        if node is not paragraph_el
+        and node.tag not in {qn("w:pPr"), qn("w:rPr"), qn("w:proofErr")}
+    ]
+    if any(
+        node.tag == qn("w:br") and node.get(qn("w:type")) not in (None, "page")
+        for node in nodes
+    ):
+        return False  # 含换行、分栏等分隔符，保留
+    if any(node.tag == qn("w:t") and (node.text or "").strip() for node in nodes):
+        return False
+    return all(node.tag in harmless for node in nodes)
+
+
+def _promote_section_to_body(document, paragraph_el) -> bool:
+    """把末尾段落里的分节符提到文档级。
+
+    拆分后这一节之后已经没有内容，段落里留着分节符会让 Word 再开一个空节，
+    末尾就多出一页空白；提到文档级则保留这一节的页面设置（页边距、页眉页脚）。
+    """
+    from docx.oxml.ns import qn
+
+    ppr = paragraph_el.find(qn("w:pPr"))
+    if ppr is None:
+        return False
+    sect = ppr.find(qn("w:sectPr"))
+    if sect is None:
+        return False
+    ppr.remove(sect)
+    body = document.element.body
+    body_sect = body.find(qn("w:sectPr"))
+    if body_sect is not None:
+        body_sect.addprevious(sect)
+        body.remove(body_sect)
+    else:
+        body.append(sect)
+    return True
+
+
+def _strip_trailing_page_break(paragraph_el) -> None:
+    """去掉段落末尾的分页符（中间的分页符保留）。"""
+    from docx.oxml.ns import qn
+
+    skip = {
+        qn("w:pPr"),
+        qn("w:rPr"),
+        qn("w:proofErr"),
+        qn("w:bookmarkStart"),
+        qn("w:bookmarkEnd"),
+        qn("w:lastRenderedPageBreak"),
+    }
+    for node in reversed(list(paragraph_el.iter())):
+        if node is paragraph_el or node.tag in skip:
+            continue
+        if node.tag == qn("w:t") and not (node.text or "").strip():
+            continue
+        if node.tag != qn("w:br"):
+            return  # 有可见内容，停止
+        if node.get(qn("w:type")) not in (None, "page"):
+            return  # 换行、分栏符等，保留
+        node.getparent().remove(node)
+
+
+def _strip_trailing_page_breaks(document) -> None:
+    """去掉章节末尾多余的分页符/分节符，避免拆分后多出一页空白。
+
+    三种情况都会多出空白页：
+    - 末尾是只含分页符的空段落（在正文末尾按 Ctrl+Enter）；
+    - 正文最后一段的末尾带分页符（Ctrl+Enter 落在正文段落上）；
+    - 末尾段落带分节符（章节之间用分节符分隔）。
+    """
+    from docx.oxml.ns import qn
+
+    body = document.element.body
+    promoted = False
     for child in reversed(list(body)):
         if child.tag == qn("w:sectPr"):
             continue
         if child.tag != qn("w:p"):
-            break
-        paragraph = Paragraph(child, document._body)
-        if paragraph.text.strip():
-            break
+            return
         ppr = child.find(qn("w:pPr"))
-        if ppr is not None and ppr.find(qn("w:sectPr")) is not None:
-            break
-        nodes = [
-            node
-            for node in child.iter()
-            if node is not child
-            and node.tag not in {qn("w:pPr"), qn("w:rPr"), qn("w:proofErr")}
-        ]
-        if any(
-            node.tag == qn("w:br") and node.get(qn("w:type")) not in (None, "page")
-            for node in nodes
-        ):
-            break  # 含换行、分栏等分隔符，保留
-        if any(node.tag not in harmless for node in nodes):
-            break  # 含图片、域、内容控件等，保留
+        sect = ppr.find(qn("w:sectPr")) if ppr is not None else None
+
+        if not _paragraph_without_content(child):
+            # 正文段落：末尾的分节符提到文档级，再去掉末尾的分页符
+            if sect is not None:
+                _promote_section_to_body(document, child)
+            _strip_trailing_page_break(child)
+            return
+
+        if sect is not None:
+            if promoted:
+                return  # 前面还有一个空节，保留
+            _promote_section_to_body(document, child)
+            promoted = True
         body.remove(child)
+
+
+def _section_of_paragraph(paragraph_el):
+    """段落里内嵌的分节属性（w:p/w:pPr/w:sectPr），没有则返回 None。"""
+    from docx.oxml.ns import qn
+
+    ppr = paragraph_el.find(qn("w:pPr"))
+    return ppr.find(qn("w:sectPr")) if ppr is not None else None
+
+
+def _section_chain(document) -> list[dict]:
+    """按文档顺序列出各节，并解析每节实际生效的页眉页脚引用。
+
+    Word 里「链接到前一节」的页眉页脚不写在当前节的 sectPr 上：某一节没有
+    声明某类页眉时沿用上一节的定义。拆分只保留本章的节，被引用的前一节已经
+    删掉，所以要先把继承来的引用算出来。返回 [{position, sectPr, headers,
+    footers}]，position 为节结束处元素在正文中的位置。
+    """
+    from docx.oxml.ns import qn
+
+    chain: list[dict] = []
+    headers: dict[str, str] = {}
+    footers: dict[str, str] = {}
+    for position, child in enumerate(list(document.element.body)):
+        if child.tag == qn("w:sectPr"):
+            sect = child
+        elif child.tag == qn("w:p"):
+            sect = _section_of_paragraph(child)
+        else:
+            sect = None
+        if sect is None:
+            continue
+        for tag, state in (
+            ("w:headerReference", headers),
+            ("w:footerReference", footers),
+        ):
+            for ref in sect.findall(qn(tag)):
+                r_id = ref.get(qn("r:id"))
+                if r_id:
+                    state[ref.get(qn("w:type")) or "default"] = r_id
+        chain.append(
+            {
+                "position": position,
+                "sectPr": sect,
+                "headers": dict(headers),
+                "footers": dict(footers),
+            }
+        )
+    return chain
+
+
+def _apply_section_references(sectPr, headers: dict[str, str], footers: dict[str, str]) -> None:
+    """把继承来的页眉页脚引用补进 sectPr，已有的定义不动。"""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    def _types(tag: str) -> set[str]:
+        return {
+            ref.get(qn("w:type")) or "default" for ref in sectPr.findall(qn(tag))
+        }
+
+    def _reference(tag: str, type_: str, r_id: str):
+        element = OxmlElement(tag)
+        element.set(qn("w:type"), type_)
+        element.set(qn("r:id"), r_id)
+        return element
+
+    # 引用必须排在 sectPr 的最前面
+    for type_, r_id in reversed(list(headers.items())):
+        if type_ not in _types("w:headerReference"):
+            sectPr.insert(0, _reference("w:headerReference", type_, r_id))
+    for type_, r_id in footers.items():
+        if type_ in _types("w:footerReference"):
+            continue
+        refs = sectPr.findall(qn("w:headerReference")) + sectPr.findall(qn("w:footerReference"))
+        index = list(sectPr).index(refs[-1]) + 1 if refs else 0
+        sectPr.insert(index, _reference("w:footerReference", type_, r_id))
+
+
+def _keep_trailing_section_properties(body, sections: list[dict], span) -> None:
+    """让拆分文档末尾的节沿用本章结束处那一节的页面设置和页眉页脚。
+
+    本章在一节中间结束时，这一节的 sectPr 实体在后面的章节里（已被删除），
+    文档级 sectPr 还停留在原文档最后一节的设置上，这里换成本章结束处那一节的。
+    本章正好在一节结尾处结束时，节的 sectPr 就在本章内，后面会提升为文档级，不用处理。
+    """
+    from copy import deepcopy
+
+    from docx.oxml.ns import qn
+
+    if not sections:
+        return
+    last = sections[-1]
+    for info in sections:
+        if info["position"] >= span.end - 1:
+            last = info
+            break
+    if span.start <= last["position"] < span.end:
+        return  # 这一节的 sectPr 在本章内，稍后会被提升为文档级
+    body_sect = body.find(qn("w:sectPr"))
+    if body_sect is None:
+        return
+    if last["sectPr"].getparent().tag == qn("w:body"):
+        # 本章结束处就是文档的最后一节，文档级 sectPr 已经是这一节的
+        _apply_section_references(body_sect, last["headers"], last["footers"])
+        return
+    replacement = deepcopy(last["sectPr"])
+    _apply_section_references(replacement, last["headers"], last["footers"])
+    body_sect.addprevious(replacement)
+    body.remove(body_sect)
 
 
 def split_document_by_chapters(
@@ -2636,6 +2817,12 @@ def split_document_by_chapters(
 
         children = list(document.element.body)
         snapshot = _numbering_snapshot(document)
+        # chapter 与 document 是同一个 docx 的两个副本，节的顺序、关系 id 一致，
+        # 因此可以直接沿用这里解析出的页眉页脚引用
+        sections = _section_chain(document)
+        section_at = {
+            section["position"]: number for number, section in enumerate(sections)
+        }
 
         used: set[str] = {source.stem.lower()}
         for index, span in enumerate(spans, start=1):
@@ -2658,9 +2845,18 @@ def split_document_by_chapters(
             for position, child in enumerate(list(body)):
                 if child.tag == qn("w:sectPr"):
                     continue
-                if span.start <= position < span.end:
+                if not (span.start <= position < span.end):
+                    body.remove(child)
                     continue
-                body.remove(child)
+                section = section_at.get(position)
+                if section is None:
+                    continue
+                info = sections[section]
+                sect = _section_of_paragraph(child)
+                if sect is not None:
+                    _apply_section_references(sect, info["headers"], info["footers"])
+
+            _keep_trailing_section_properties(body, sections, span)
             _strip_trailing_page_breaks(chapter)
             _apply_numbering_starts(
                 chapter, _chapter_numbering_starts(snapshot, children, span)

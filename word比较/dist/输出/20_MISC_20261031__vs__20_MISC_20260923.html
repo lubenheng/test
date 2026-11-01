@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word 文档比较报告</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --line: #e3e6ec;
+    --text: #1f2329;
+    --muted: #6b7280;
+    --ins-bg: #d9f7e3;
+    --ins-fg: #116329;
+    --del-bg: #ffe1e4;
+    --del-fg: #9b1c2c;
+    --accent: #2563eb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 10px;
+  }
+  h1 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+  .files { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .files code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font-size: 12.5px; color: #374151;
+  }
+  .chip b { font-weight: 600; color: var(--text); }
+  .chip.ins b { color: var(--ins-fg); }
+  .chip.del b { color: var(--del-fg); }
+  .chip.mod b { color: var(--warn); }
+  .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+  .toolbar button {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .col-heads {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    padding: 8px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  main { padding: 0 20px 80px; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #f0f2f5;
+    scroll-margin-top: 190px;
+  }
+  .row.changed { background: #fffdf5; }
+  .row.kind-insert { background: #f4fdf7; }
+  .row.kind-delete { background: #fff6f7; }
+  .row.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3bf; } to { } }
+  .gutter {
+    font-size: 11px;
+    color: #9aa1ac;
+    text-align: right;
+    padding: 10px 8px 10px 0;
+    border-right: 1px solid #f0f2f5;
+    user-select: none;
+  }
+  .gutter .no { display: block; color: var(--accent); font-weight: 600; }
+  .cell { padding: 8px 14px; min-width: 0; }
+  .cell.left { border-right: 1px dashed #eceff3; }
+  .para { margin: 0 0 4px; white-space: normal; overflow-wrap: anywhere; }
+  .para.align-center { text-align: center; }
+  .para.align-right { text-align: right; }
+  .para.align-both { text-align: justify; }
+  .style-tag {
+    font-size: 10.5px; color: #7c3aed; border: 1px solid #ddd6fe;
+    background: #f5f3ff; border-radius: 4px; padding: 0 4px; margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .del { background: var(--del-bg); color: var(--del-fg); text-decoration: line-through; border-radius: 2px; }
+  .ins { background: var(--ins-bg); color: var(--ins-fg); text-decoration: underline; border-radius: 2px; }
+  .placeholder { color: #c1c6cf; font-style: italic; font-size: 12.5px; }
+  .fmt {
+    margin-top: 4px; font-size: 11.5px; color: #92400e;
+    background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 4px;
+    padding: 1px 6px; display: inline-block;
+  }
+  .badge {
+    font-size: 11px; border-radius: 4px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  table.diff-table {
+    border-collapse: collapse; width: 100%; margin: 2px 0 6px;
+    font-size: 13px; table-layout: auto;
+  }
+  table.diff-table td {
+    border: 1px solid #dfe3e8; padding: 4px 7px; vertical-align: top;
+    min-width: 60px; overflow-wrap: anywhere;
+  }
+  tr.trow-insert td { background: #f4fdf7; }
+  tr.trow-delete td { background: #fff6f7; }
+  tr.trow-modify td { background: #fffef7; }
+  td.tcell-changed { outline: 1px solid #fcd34d; outline-offset: -1px; }
+  td.merged { background: #fafbfc; }
+  .hidden { display: none !important; }
+  .empty-note { padding: 40px 20px; color: var(--muted); text-align: center; }
+  @media print { header { position: static; } .row { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Word 文档比较报告</h1>
+  <div class="files">
+    基准：<code>20_MISC_20261031.docx</code>
+    &nbsp;→&nbsp; 对比：<code>20_MISC_20260923.docx</code>
+  </div>
+  <div class="stats">
+    <span class="chip">整体相似度 <b>92.0%</b></span>
+    <span class="chip ins">新增 <b>4</b></span>
+    <span class="chip del">删除 <b>9</b></span>
+    <span class="chip mod">修改 <b>35</b></span>
+    <span class="chip">格式变更 <b>60</b></span>
+    <span class="chip">表格变更 <b>0</b></span>
+    <span class="chip">共 <b>48</b> 处变更</span>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="only-changes"> 只看变更</label>
+    <button id="prev">↑ 上一处</button>
+    <button id="next">↓ 下一处</button>
+    <span id="pos">- / 48</span>
+  </div>
+</header>
+
+<div class="col-heads">
+  <div></div>
+  <div>20_MISC_20261031.docx（基准）</div>
+  <div>20_MISC_20260923.docx（对比）</div>
+</div>
+
+<main id="view">
+  
+  <div class="row kind-modify changed"
+       id="chg-1"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">1</span>
+      <span>1</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题1</span>MISC</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题1</span><span class="num">20 </span>MISC</p><div class="fmt">格式变更：文字加粗: 关→开 ×4；段落编号层级: 继承→0</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-2"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">2</span>
+      <span>2</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>概述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">20.1 </span>概述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-3"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">3</span>
+      <span>3</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>简介</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.1.1 </span>简介</p><div class="fmt">格式变更：文字加粗: 关→继承 ×2；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>4</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MISC模块是模拟控制模块，其中包含了CSA模块和温度传感器模块的控制。CSA模块把采样电阻上的微弱差分电压放大、叠加直流偏置后，送到ADC内部通道由ADC采样；同时输出的信号还可送内部过流比较器做硬件过流保护。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MISC模块是模拟控制模块，其中包含了CSA模块和温度传感器模块的控制。CSA模块把采样电阻上的微弱差分电压放大、叠加直流偏置后，送到ADC内部通道由ADC采样；同时输出的信号还可送内部过流比较器做硬件过流保护。</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>5</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>详细信息描述请参考寄存器模块描述。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>详细信息描述请参考寄存器模块描述。</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-4"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">4</span>
+      <span>6</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>主要功能</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.1.2 </span>主要功能</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>7</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MISC模块主要提供以下功能：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MISC模块主要提供以下功能：</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-5"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">5</span>
+      <span>8</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA电流采样放大器控制；</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA电流采样放大器控制；</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-6"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">6</span>
+      <span>9</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA增益、偏置、DAC参考、输入通道选择；</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA增益、偏置、DAC参考、输入通道选择；</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-7"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">7</span>
+      <span>10</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA输出滤波控制；</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA输出滤波控制；</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-8"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">8</span>
+      <span>11</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA过流检测、迟滞、消抖控制；</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>CSA过流检测、迟滞、消抖控制；</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-9"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">9</span>
+      <span>12</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>内部结温TJ检测控制；</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>内部结温TJ检测控制；</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-10"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">10</span>
+      <span>13</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>外部温度TS检测控制，支持GPIO5/GPIO6外接NTC电阻；</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>外部温度TS检测控制，支持GPIO5/GPIO6外接NTC电阻；</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-11"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">11</span>
+      <span>14</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>过温预警OTW、过温关断OTS阈值及消抖控制；</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>过温预警OTW、过温关断OTS阈值及消抖控制；</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-12"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">12</span>
+      <span>15</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>提供CSA过流、TJ_OTW、TJ_OTS的实时和锁存状态指示。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">单段落</span><span class="num"></span>提供CSA过流、TJ_OTW、TJ_OTS的实时和锁存状态指示。</p><div class="fmt">格式变更：段落左缩进: 0 磅→22 磅</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-13"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">13</span>
+      <span>16</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-14"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">14</span>
+      <span>17</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-15"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">15</span>
+      <span>18</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-16"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">16</span>
+      <span>19</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-17"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">17</span>
+      <span>20</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-18"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">18</span>
+      <span>21</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MISC框图</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.1.3 </span>MISC框图</p><div class="fmt">格式变更：文字加粗: 关→继承 ×6；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-19"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">19</span>
+      <span>22</span>
+    </div>
+    <div class="cell left"><p class="para align-center"><span class="style-tag">段落正文</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>23</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">图注</span>图20-1 MISC模块框图</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">图注</span>图20-1 MISC模块框图</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-20"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">20</span>
+      <span>24</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>寄存器列表</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">20.2 </span>寄存器列表</p><div class="fmt">格式变更：文字加粗: 关→继承 ×5；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>25</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MISC在芯片中的基地址是0x4000_7800</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MISC在芯片中的基地址是0x4000_7800</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>26</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">表注</span>表20-1 MISC寄存器地址分配</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">表注</span>表20-1 MISC寄存器地址分配</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>27</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">MISC_IR</td><td class="tcell">0x04</td><td class="tcell">MISC中断寄存器</td></tr><tr class="trow-equal"><td class="tcell">MISC_CSACR0</td><td class="tcell">0x10</td><td class="tcell">MISC CSA控制寄存器0</td></tr><tr class="trow-equal"><td class="tcell">MISC_CSACR1</td><td class="tcell">0x14</td><td class="tcell">MISC CSA控制寄存器1</td></tr><tr class="trow-equal"><td class="tcell">MISC_TEMPCR</td><td class="tcell">0x18</td><td class="tcell">MISC温度传感器控制寄存器</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">名称</td><td class="tcell">偏移地址</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">MISC_IR</td><td class="tcell">0x04</td><td class="tcell">MISC中断寄存器</td></tr><tr class="trow-equal"><td class="tcell">MISC_CSACR0</td><td class="tcell">0x10</td><td class="tcell">MISC CSA控制寄存器0</td></tr><tr class="trow-equal"><td class="tcell">MISC_CSACR1</td><td class="tcell">0x14</td><td class="tcell">MISC CSA控制寄存器1</td></tr><tr class="trow-equal"><td class="tcell">MISC_TEMPCR</td><td class="tcell">0x18</td><td class="tcell">MISC温度传感器控制寄存器</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-21"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">21</span>
+      <span>28</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-22"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">22</span>
+      <span>29</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>MISC寄存器描述</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">20.3 </span>MISC寄存器描述</p><div class="fmt">格式变更：文字加粗: 关→继承 ×9；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-23"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">23</span>
+      <span>30</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MISC_IR   MISC中断寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.3.1 </span>MISC_IR   MISC中断寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×19；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>31</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_7804</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_7804</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-24"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">24</span>
+      <span>32</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x00</p></div>
+    <div class="cell right"><p class="para align-left">复位值:0x00</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×8；文字字号: 12 磅→继承 ×8；文字颜色: 000000→继承 ×8；段落段落样式: 段落正文→Normal</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>33</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">IR_TJ_OTW_NG</td><td class="tcell">TJ Over Temp Warning (OTW) Protect (e.g.120C)  index signal.<br>When die temp &gt;120C, TJ_OTW=1 (高温);<br>When die temp &lt;120C, TJ_OTW=0 (正常);</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">IR_TJ_OTS_NG</td><td class="tcell">TJ Over Temp Shutdown (OTS) Protect (e.g. 140C)  index signal.<br>When die temp &gt;140C, TJ_OTS=1 (过温);<br>When die temp &lt;140C, TJ_OTS=0 (正常);</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">IR_CSA_OC_NG</td><td class="tcell">Current Sense Amplifier Over-Curent  (OC) (过流报警) Index Signal.<br>When CSA &lt; OC_VTH, CSA_OC=0 (正常);<br>When CSA &gt; OC_VTH, CSA_OC=1 (过流);</td></tr><tr class="trow-equal"><td class="tcell">[15:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">RO_TJ_OTW_LAT</td><td class="tcell">TJ Over Temp Warning (OTW) Protect (e.g. 120C)  index signal.<br>When die temp &gt;120C, TJ_OTW=1 (高温);<br>When die temp &lt;120C, TJ_OTW=0 (正常);</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">RO_TJ_OTS_LAT</td><td class="tcell">TJ Over Temp Shutdown (OTS) Protect (e.g.140C)  index signal.<br>When die temp &gt;140C, TJ_OTS=1 (Latch);<br>When die temp &lt;140C, TJ_OTS=0;</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">RO_CSA_OC_LAT</td><td class="tcell">Current Sense Amplifier Over-Curent  (OC) (过流报警) Index Signal.<br>When CSA &lt; OC_VTH, CSA_OC=0 (正常);<br>When CSA &gt; OC_VTH, CSA_OC=1 (过流);</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">IR_TJ_OTW_NG</td><td class="tcell">TJ Over Temp Warning (OTW) Protect (e.g.120C)  index signal.<br>When die temp &gt;120C, TJ_OTW=1 (高温);<br>When die temp &lt;120C, TJ_OTW=0 (正常);</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">IR_TJ_OTS_NG</td><td class="tcell">TJ Over Temp Shutdown (OTS) Protect (e.g. 140C)  index signal.<br>When die temp &gt;140C, TJ_OTS=1 (过温);<br>When die temp &lt;140C, TJ_OTS=0 (正常);</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">IR_CSA_OC_NG</td><td class="tcell">Current Sense Amplifier Over-Curent  (OC) (过流报警) Index Signal.<br>When CSA &lt; OC_VTH, CSA_OC=0 (正常);<br>When CSA &gt; OC_VTH, CSA_OC=1 (过流);</td></tr><tr class="trow-equal"><td class="tcell">[15:3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">RO_TJ_OTW_LAT</td><td class="tcell">TJ Over Temp Warning (OTW) Protect (e.g. 120C)  index signal.<br>When die temp &gt;120C, TJ_OTW=1 (高温);<br>When die temp &lt;120C, TJ_OTW=0 (正常);</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">RO_TJ_OTS_LAT</td><td class="tcell">TJ Over Temp Shutdown (OTS) Protect (e.g.140C)  index signal.<br>When die temp &gt;140C, TJ_OTS=1 (Latch);<br>When die temp &lt;140C, TJ_OTS=0;</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RO</td><td class="tcell">&nbsp;</td><td class="tcell">RO_CSA_OC_LAT</td><td class="tcell">Current Sense Amplifier Over-Curent  (OC) (过流报警) Index Signal.<br>When CSA &lt; OC_VTH, CSA_OC=0 (正常);<br>When CSA &gt; OC_VTH, CSA_OC=1 (过流);</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-25"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">25</span>
+      <span>34</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MISC_CSACR0  CSA控制寄存器0</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.3.2 </span>MISC_CSACR0  CSA控制寄存器0</p><div class="fmt">格式变更：文字加粗: 关→继承 ×22；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-26"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">26</span>
+      <span>35</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_7810</p></div>
+    <div class="cell right"><p class="para align-left">地址:0x4000_7810</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×14；文字字号: 12 磅→继承 ×14；文字颜色: 000000→继承 ×14；段落段落样式: 段落正文→Normal</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-27"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">27</span>
+      <span>36</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0001_F802</p></div>
+    <div class="cell right"><p class="para align-left">复位值:0x0001_F802</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×15；文字字号: 12 磅→继承 ×15；文字颜色: 000000→继承 ×15；段落段落样式: 段落正文→Normal</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>37</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:24]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_DAC_OUT</td><td class="tcell">DAC输入信号</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[22:20]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_DAC_REF</td><td class="tcell">配置DAC量程：<br>000：1.2V<br>001：1.5V<br>010：2V<br>011：2.5V<br>100：3V<br>101：vdd33<br>110：vdd33<br>111：vdd33</td></tr><tr class="trow-equal"><td class="tcell">[19:17]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[16:12]</td><td class="tcell">R/W</td><td class="tcell">5’h1F</td><td class="tcell">RW_CSA_REF</td><td class="tcell">配置CSA偏置电压：<br>00000:1.5/8V<br>00001:1.5/6V<br>00010:1.5/4V<br>00011:1.5/2V<br>00100:2/8V<br>00101:2/6V<br>00110:2/4V<br>00111:2/2V<br>01000:2.5/8V<br>01001:2.5/6V<br>01010:2.5/4V<br>01011:2.5/2V<br>01100:3/8V<br>01101:3/6V<br>01110:3/4V<br>01111:3/2V<br>1xx00:vdd33/8V<br>1xx01:vdd33/6V<br>1xx10:vdd33/4V<br>1xx11:vdd33/2V</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_CSA_DAC_EN</td><td class="tcell">控制DAC使能：<br>0:不使能；<br>1:使能；</td></tr><tr class="trow-equal"><td class="tcell">[10:8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_GAIN</td><td class="tcell">配置CSA增益：<br>000:1<br>001:2<br>010:4<br>011:8<br>100:12<br>101:16<br>110:32<br>111:64</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_CSN</td><td class="tcell">选择反相采样点通道：<br>00：GPIO8<br>01：GPIO10<br>10：GPIO12<br>11：GND</td></tr><tr class="trow-equal"><td class="tcell">[5:4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_CSP</td><td class="tcell">选择同相采样点通道：<br>00：GPIO7<br>01：GPIO9<br>10：GPIO11<br>11：GND</td></tr><tr class="trow-equal"><td class="tcell">[3:2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_MODE</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_CSA_AMP_EN</td><td class="tcell">控制CSA运放使能：<br>0：不使能；<br>1：使能；</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_ANA_CSA_EN</td><td class="tcell">控制 CSA电流采样模块使能:<br>1:使能;<br>0:关闭;</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:24]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_DAC_OUT</td><td class="tcell">DAC输入信号</td></tr><tr class="trow-equal"><td class="tcell">[23]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[22:20]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_DAC_REF</td><td class="tcell">配置DAC量程：<br>000：1.2V<br>001：1.5V<br>010：2V<br>011：2.5V<br>100：3V<br>101：vdd33<br>110：vdd33<br>111：vdd33</td></tr><tr class="trow-equal"><td class="tcell">[19:17]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[16:12]</td><td class="tcell">R/W</td><td class="tcell">5’h1F</td><td class="tcell">RW_CSA_REF</td><td class="tcell">配置CSA偏置电压：<br>00000:1.5/8V<br>00001:1.5/6V<br>00010:1.5/4V<br>00011:1.5/2V<br>00100:2/8V<br>00101:2/6V<br>00110:2/4V<br>00111:2/2V<br>01000:2.5/8V<br>01001:2.5/6V<br>01010:2.5/4V<br>01011:2.5/2V<br>01100:3/8V<br>01101:3/6V<br>01110:3/4V<br>01111:3/2V<br>1xx00:vdd33/8V<br>1xx01:vdd33/6V<br>1xx10:vdd33/4V<br>1xx11:vdd33/2V</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_CSA_DAC_EN</td><td class="tcell">控制DAC使能：<br>0:不使能；<br>1:使能；</td></tr><tr class="trow-equal"><td class="tcell">[10:8]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_GAIN</td><td class="tcell">配置CSA增益：<br>000:1<br>001:2<br>010:4<br>011:8<br>100:12<br>101:16<br>110:32<br>111:64</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_CSN</td><td class="tcell">选择反相采样点通道：<br>00：GPIO8<br>01：GPIO10<br>10：GPIO12<br>11：GND</td></tr><tr class="trow-equal"><td class="tcell">[5:4]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_CSP</td><td class="tcell">选择同相采样点通道：<br>00：GPIO7<br>01：GPIO9<br>10：GPIO11<br>11：GND</td></tr><tr class="trow-equal"><td class="tcell">[3:2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_CSA_MODE</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_CSA_AMP_EN</td><td class="tcell">控制CSA运放使能：<br>0：不使能；<br>1：使能；</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_ANA_CSA_EN</td><td class="tcell">控制 CSA电流采样模块使能:<br>1:使能;<br>0:关闭;</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-28"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">28</span>
+      <span>38</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-29"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">29</span>
+      <span>39</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MISC_CSACR1 CSA控制寄存器1</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.3.3 </span>MISC_CSACR1 CSA控制寄存器1</p><div class="fmt">格式变更：文字加粗: 关→继承 ×21；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>40</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_7814</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_7814</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>41</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0000_4001</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0000_4001</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>42</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">IR_CSA_OC_NG</td><td class="tcell">Current Sense Amplifier Over-Curent(OC) (过流报警)Index Signal.<br>When CSA &lt; OC_VTH, CSA_OC=0 (正常);<br>When CSA &gt; OC_VTH, CSA_OC=1 (过流);</td></tr><tr class="trow-equal"><td class="tcell">[30:20]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[19:18]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_LPF</td><td class="tcell">配置CSA输出滤波截止频率：<br>00:200Hz<br>01:400Hz<br>10:600Hz<br>11:800Hz</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_LPF_SEL</td><td class="tcell">CSA输出片外滤波使能：<br>0：不使能，片上电容滤波；<br>1：使能，片外电容滤波；</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_LPF_GPIO</td><td class="tcell">CSA LPF外接滤波电容路径使能：<br>0：路径关闭，不外接电容；<br>1：路径开启，外接电容；</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_NG</td><td class="tcell">配置OC指示信号消抖时长：<br>00:0.5us<br>01:1us<br>10:2us<br>11:4us</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_NG_EN</td><td class="tcell">控制OC指示信号消抖使能：<br>0：不消抖；<br>1：消抖；</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[10:8]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_HYS</td><td class="tcell">配置OC检测迟滞：<br>000:0<br>001:13mV<br>010:24mV<br>011:33mV<br>100:41mV<br>101:48mV<br>110:54mV<br>111:59mV</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[6:4]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_SEL</td><td class="tcell">选择OC检测信号：<br>000：csp0<br>001：csp1<br>010：csp2<br>011：csp1+csp2+csp3<br>100：vsen<br>101：vtest<br>110：null<br>111：null</td></tr><tr class="trow-equal"><td class="tcell">[3:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_CSA_OC_EN</td><td class="tcell">控制CSA OC检测使能：<br>0：不使能；<br>1：使能；</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31]</td><td class="tcell">RO</td><td class="tcell">0</td><td class="tcell">IR_CSA_OC_NG</td><td class="tcell">Current Sense Amplifier Over-Curent(OC) (过流报警)Index Signal.<br>When CSA &lt; OC_VTH, CSA_OC=0 (正常);<br>When CSA &gt; OC_VTH, CSA_OC=1 (过流);</td></tr><tr class="trow-equal"><td class="tcell">[30:20]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[19:18]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_LPF</td><td class="tcell">配置CSA输出滤波截止频率：<br>00:200Hz<br>01:400Hz<br>10:600Hz<br>11:800Hz</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_LPF_SEL</td><td class="tcell">CSA输出片外滤波使能：<br>0：不使能，片上电容滤波；<br>1：使能，片外电容滤波；</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_LPF_GPIO</td><td class="tcell">CSA LPF外接滤波电容路径使能：<br>0：路径关闭，不外接电容；<br>1：路径开启，外接电容；</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_NG</td><td class="tcell">配置OC指示信号消抖时长：<br>00:0.5us<br>01:1us<br>10:2us<br>11:4us</td></tr><tr class="trow-equal"><td class="tcell">[13]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_NG_EN</td><td class="tcell">控制OC指示信号消抖使能：<br>0：不消抖；<br>1：消抖；</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[10:8]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_HYS</td><td class="tcell">配置OC检测迟滞：<br>000:0<br>001:13mV<br>010:24mV<br>011:33mV<br>100:41mV<br>101:48mV<br>110:54mV<br>111:59mV</td></tr><tr class="trow-equal"><td class="tcell">[7]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[6:4]</td><td class="tcell">&nbsp;</td><td class="tcell">&nbsp;</td><td class="tcell">RW_CSA_OC_SEL</td><td class="tcell">选择OC检测信号：<br>000：csp0<br>001：csp1<br>010：csp2<br>011：csp1+csp2+csp3<br>100：vsen<br>101：vtest<br>110：null<br>111：null</td></tr><tr class="trow-equal"><td class="tcell">[3:1]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_CSA_OC_EN</td><td class="tcell">控制CSA OC检测使能：<br>0：不使能；<br>1：使能；</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-30"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">30</span>
+      <span>43</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>MISC_TEMPCR   MISC温度传感器控制寄存器</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.3.4 </span>MISC_TEMPCR   MISC温度传感器控制寄存器</p><div class="fmt">格式变更：文字加粗: 关→继承 ×28；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>44</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_7818</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>地址:0x4000_7818</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-31"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">31</span>
+      <span>45</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>复位值:0x0000_0660</p></div>
+    <div class="cell right"><p class="para align-left">复位值:0x0000_0660</p><div class="fmt">格式变更：文字字体: 宋体→继承 ×15；文字字号: 12 磅→继承 ×15；文字颜色: 000000→继承 ×15；段落段落样式: 段落正文→Normal</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>46</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TS_GPIO6_EN</td><td class="tcell">控制TS电流流到GPIO6使能<br>(外部接NTC电阻)<br>0：不使能；<br>1：使能；<br>注: 用于双路TS时, 需要分时切换 GPIO5,GPIO6;只有在ADC要采样GPIO5/6时,才打开TS输出;不采样时,可以关闭TS电流;</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TS_GPIO5_EN</td><td class="tcell">控制TS电流流到GPIO5使能<br>(外部接NTC电阻)<br>0：不使能；<br>1：使能；</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_ANA_TS_EN</td><td class="tcell">控制TS外部温度检测模块使能:<br>1: 使能;<br>0: 关闭;</td></tr><tr class="trow-equal"><td class="tcell">[15:12]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[11:10]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_TJ_OTW_NG</td><td class="tcell">配置过温警报信号消抖时长：<br>00:0.25ms<br>01:0.5ms<br>10:1ms<br>11:2ms</td></tr><tr class="trow-equal"><td class="tcell">[9:8]</td><td class="tcell">R/W</td><td class="tcell">2’b10</td><td class="tcell">RW_TJ_OTW</td><td class="tcell">配置触发过温警报的温度：<br>00:120℃<br>01:125℃<br>10:130℃<br>11:135℃</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">TW_TJ_OTS_NG</td><td class="tcell">配置过温关断信号消抖时长：<br>00:0.25ms<br>01:0.5ms<br>10:1ms<br>11:2ms</td></tr><tr class="trow-equal"><td class="tcell">[5:4]</td><td class="tcell">R/W</td><td class="tcell">2’b10</td><td class="tcell">RW_TJ_OTS</td><td class="tcell">配置触发过温关断的温度：<br>00:135℃<br>01:140℃<br>10:145℃<br>11:150℃</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TJ_OTW_NG_EN</td><td class="tcell">控制过温警报信号消抖使能：<br>0：不消抖；<br>1：消抖；</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TJ_OTS_NG_EN</td><td class="tcell">控制过温关断信号消抖使能：<br>0：不消抖；<br>1：消抖；</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_ANA_TJ_EN</td><td class="tcell">控制 TJ 内部温度检测模块使能:<br>1: 使能;<br>0: 关闭;</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位域</td><td class="tcell">类型</td><td class="tcell">复位</td><td class="tcell">名称</td><td class="tcell">描述</td></tr><tr class="trow-equal"><td class="tcell">[31:19]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[18]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TS_GPIO6_EN</td><td class="tcell">控制TS电流流到GPIO6使能<br>(外部接NTC电阻)<br>0：不使能；<br>1：使能；<br>注: 用于双路TS时, 需要分时切换 GPIO5,GPIO6;只有在ADC要采样GPIO5/6时,才打开TS输出;不采样时,可以关闭TS电流;</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TS_GPIO5_EN</td><td class="tcell">控制TS电流流到GPIO5使能<br>(外部接NTC电阻)<br>0：不使能；<br>1：使能；</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_ANA_TS_EN</td><td class="tcell">控制TS外部温度检测模块使能:<br>1: 使能;<br>0: 关闭;</td></tr><tr class="trow-equal"><td class="tcell">[15:12]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[11:10]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">RW_TJ_OTW_NG</td><td class="tcell">配置过温警报信号消抖时长：<br>00:0.25ms<br>01:0.5ms<br>10:1ms<br>11:2ms</td></tr><tr class="trow-equal"><td class="tcell">[9:8]</td><td class="tcell">R/W</td><td class="tcell">2’b10</td><td class="tcell">RW_TJ_OTW</td><td class="tcell">配置触发过温警报的温度：<br>00:120℃<br>01:125℃<br>10:130℃<br>11:135℃</td></tr><tr class="trow-equal"><td class="tcell">[7:6]</td><td class="tcell">R/W</td><td class="tcell">1</td><td class="tcell">TW_TJ_OTS_NG</td><td class="tcell">配置过温关断信号消抖时长：<br>00:0.25ms<br>01:0.5ms<br>10:1ms<br>11:2ms</td></tr><tr class="trow-equal"><td class="tcell">[5:4]</td><td class="tcell">R/W</td><td class="tcell">2’b10</td><td class="tcell">RW_TJ_OTS</td><td class="tcell">配置触发过温关断的温度：<br>00:135℃<br>01:140℃<br>10:145℃<br>11:150℃</td></tr><tr class="trow-equal"><td class="tcell">[3]</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td><td class="tcell">--</td></tr><tr class="trow-equal"><td class="tcell">[2]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TJ_OTW_NG_EN</td><td class="tcell">控制过温警报信号消抖使能：<br>0：不消抖；<br>1：消抖；</td></tr><tr class="trow-equal"><td class="tcell">[1]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_TJ_OTS_NG_EN</td><td class="tcell">控制过温关断信号消抖使能：<br>0：不消抖；<br>1：消抖；</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">R/W</td><td class="tcell">0</td><td class="tcell">RW_ANA_TJ_EN</td><td class="tcell">控制 TJ 内部温度检测模块使能:<br>1: 使能;<br>0: 关闭;</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-32"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">32</span>
+      <span>47</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-33"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">33</span>
+      <span>48</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题2</span>应用指南</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题2</span><span class="num">20.4 </span>应用指南</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→1</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-34"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">34</span>
+      <span>49</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span>功能说明</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.4.1 </span>功能说明</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4；段落编号层级: 继承→2</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-35"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">35</span>
+      <span>50</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落标题</span><span class="num">1. </span>输入</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题4</span><span class="num">(1) </span>输入</p><div class="fmt">格式变更：段落段落样式: 单段落标题→标题4</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>51</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>引脚必须切为模拟模式，否则数字I/O会把模拟信号拉偏：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>引脚必须切为模拟模式，否则数字I/O会把模拟信号拉偏：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>52</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>I/O引脚切换执行步骤：清复用（AF清零）-关输出使能-关输入使能-关上拉-关下拉-切模拟。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>I/O引脚切换执行步骤：清复用（AF清零）-关输出使能-关输入使能-关上拉-关下拉-切模拟。</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>53</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>通道号由寄存器RW_CSA_CSP/RW_CSA_CSN各2bit选择（SDK中由CSA_SET_InputCH()同时写两个字段）：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>通道号由寄存器RW_CSA_CSP/RW_CSA_CSN各2bit选择（SDK中由CSA_SET_InputCH()同时写两个字段）：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>54</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">字段值</td><td class="tcell">CSP（同相端）</td><td class="tcell">CSN（反相端）</td><td class="tcell">SDK 宏</td></tr><tr class="trow-equal"><td class="tcell">0</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr><tr class="trow-equal"><td class="tcell">3</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">字段值</td><td class="tcell">CSP（同相端）</td><td class="tcell">CSN（反相端）</td><td class="tcell">SDK 宏</td></tr><tr class="trow-equal"><td class="tcell">0</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr><tr class="trow-equal"><td class="tcell">3</td><td class="tcell">GPIO7</td><td class="tcell">GPIO7</td><td class="tcell">CSA_FIXED_INPUT_CH0`</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>55</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>RW_CSA_MODE[3:2]决定通道切换方式（CSA_InputCH_SWMode()）：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>RW_CSA_MODE[3:2]决定通道切换方式（CSA_InputCH_SWMode()）：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>56</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">值</td><td class="tcell">SDK 宏</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">0</td><td class="tcell">CSA_FIXED_CH_MODE</td><td class="tcell">固定通道，始终采CSP/CSN指定的那一对</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">CSA_AUTO_DIFF_MODE</td><td class="tcell">自动差分，按序轮换差分输入对（三电阻方案）</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">CSA_AUTO_SINGLE_MODE</td><td class="tcell">自动单端</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">值</td><td class="tcell">SDK 宏</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">0</td><td class="tcell">CSA_FIXED_CH_MODE</td><td class="tcell">固定通道，始终采CSP/CSN指定的那一对</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">CSA_AUTO_DIFF_MODE</td><td class="tcell">自动差分，按序轮换差分输入对（三电阻方案）</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">CSA_AUTO_SINGLE_MODE</td><td class="tcell">自动单端</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-36"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">36</span>
+      <span>57</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落标题</span><span class="num">2. </span>增益</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题4</span><span class="num">(2) </span>增益</p><div class="fmt">格式变更：段落段落样式: 单段落标题→标题4</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>58</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>RW_CSA_GAIN[10:8]（CSA_SET_PGAGAIN()）：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>RW_CSA_GAIN[10:8]（CSA_SET_PGAGAIN()）：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>59</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">字段值</td><td class="tcell">增益</td><td class="tcell">SDK 宏</td></tr><tr class="trow-equal"><td class="tcell">0</td><td class="tcell">×1</td><td class="tcell">CSA_PGA_GAIN_X1</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">×2</td><td class="tcell">CSA_PGA_GAIN_X2</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">×4</td><td class="tcell">CSA_PGA_GAIN_X4</td></tr><tr class="trow-equal"><td class="tcell">3</td><td class="tcell">×8</td><td class="tcell">CSA_PGA_GAIN_X8</td></tr><tr class="trow-equal"><td class="tcell">4</td><td class="tcell">×12</td><td class="tcell">CSA_PGA_GAIN_X12</td></tr><tr class="trow-equal"><td class="tcell">5</td><td class="tcell">×16</td><td class="tcell">CSA_PGA_GAIN_X16</td></tr><tr class="trow-equal"><td class="tcell">6</td><td class="tcell">×32</td><td class="tcell">CSA_PGA_GAIN_X32</td></tr><tr class="trow-equal"><td class="tcell">7</td><td class="tcell">×64</td><td class="tcell">CSA_PGA_GAIN_X64</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">字段值</td><td class="tcell">增益</td><td class="tcell">SDK 宏</td></tr><tr class="trow-equal"><td class="tcell">0</td><td class="tcell">×1</td><td class="tcell">CSA_PGA_GAIN_X1</td></tr><tr class="trow-equal"><td class="tcell">1</td><td class="tcell">×2</td><td class="tcell">CSA_PGA_GAIN_X2</td></tr><tr class="trow-equal"><td class="tcell">2</td><td class="tcell">×4</td><td class="tcell">CSA_PGA_GAIN_X4</td></tr><tr class="trow-equal"><td class="tcell">3</td><td class="tcell">×8</td><td class="tcell">CSA_PGA_GAIN_X8</td></tr><tr class="trow-equal"><td class="tcell">4</td><td class="tcell">×12</td><td class="tcell">CSA_PGA_GAIN_X12</td></tr><tr class="trow-equal"><td class="tcell">5</td><td class="tcell">×16</td><td class="tcell">CSA_PGA_GAIN_X16</td></tr><tr class="trow-equal"><td class="tcell">6</td><td class="tcell">×32</td><td class="tcell">CSA_PGA_GAIN_X32</td></tr><tr class="trow-equal"><td class="tcell">7</td><td class="tcell">×64</td><td class="tcell">CSA_PGA_GAIN_X64</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-37"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">37</span>
+      <span>60</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">注意事项</span><span class="num"></span>注意放大倍数越大，输出摆幅越容易被偏置电压与电源轨限幅，选档时需同时校验偏置+I_max×Rs×增益≤满量程。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">注意事项</span><span class="num"></span>注意放大倍数越大，输出摆幅越容易被偏置电压与电源轨限幅，选档时需同时校验偏置+I_max×Rs×增益≤满量程。</p><div class="fmt">格式变更：文字加粗: 开→继承 ×55</div></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-38"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">38</span>
+      <span>61</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-insert changed"
+       id="chg-39"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">39</span>
+      <span>62</span>
+    </div>
+    <div class="cell left"><div class="placeholder">（该侧无内容）</div></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span><span class="ins"></span></p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-40"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">40</span>
+      <span>63</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落标题</span><span class="num">3. </span>偏置电压</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题4</span><span class="num">(3) </span>偏置电压</p><div class="fmt">格式变更：段落段落样式: 单段落标题→标题4</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>64</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>RW_CSA_REF[16:12]共5bit，编码为{VDD33选择,基准选择[1:0],分压选择[1:0]}：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>RW_CSA_REF[16:12]共5bit，编码为{VDD33选择,基准选择[1:0],分压选择[1:0]}：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>65</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">子字段</td><td class="tcell">位</td><td class="tcell">取值</td></tr><tr class="trow-equal"><td class="tcell">VDD33 基准选择</td><td class="tcell">[16]</td><td class="tcell">1=基准取VDD33（此时基准选择位无效）</td></tr><tr class="trow-equal"><td class="tcell">基准选择</td><td class="tcell">[15:14]</td><td class="tcell">0=1.5V，1=2.0V，2=2.5V，3=3.0V</td></tr><tr class="trow-equal"><td class="tcell">分压选择</td><td class="tcell">[13:12]</td><td class="tcell">0=/8，1=/6，2=/4，3=/2</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">子字段</td><td class="tcell">位</td><td class="tcell">取值</td></tr><tr class="trow-equal"><td class="tcell">VDD33 基准选择</td><td class="tcell">[16]</td><td class="tcell">1=基准取VDD33（此时基准选择位无效）</td></tr><tr class="trow-equal"><td class="tcell">基准选择</td><td class="tcell">[15:14]</td><td class="tcell">0=1.5V，1=2.0V，2=2.5V，3=3.0V</td></tr><tr class="trow-equal"><td class="tcell">分压选择</td><td class="tcell">[13:12]</td><td class="tcell">0=/8，1=/6，2=/4，3=/2</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-41"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">41</span>
+      <span>66</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落标题</span><span class="num">4. </span>输出通路与ADC采样</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题4</span><span class="num">(4) </span>输出通路与ADC采样</p><div class="fmt">格式变更：段落段落样式: 单段落标题→标题4</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>67</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>CSA有两路输出：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>CSA有两路输出：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>68</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>CSA_VSEN：运放直接输出，未经滤波。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>CSA_VSEN：运放直接输出，未经滤波。</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>69</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>CSA_VLPF经LPF后的输出：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>CSA_VLPF经LPF后的输出：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>70</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>两路输出都在芯片内部连到ADC的模拟输入通道，无需外部连线。ADC通道号与CSA输出信号的对应关系见章节19.2.3中表19-2。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>两路输出都在芯片内部连到ADC的模拟输入通道，无需外部连线。ADC通道号与CSA输出信号的对应关系见章节19.2.3中表19-2。</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>71</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>ADC侧配置与结果读取见章节19</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>ADC侧配置与结果读取见章节19</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-42"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">42</span>
+      <span>72</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落标题</span><span class="num">5. </span>低通滤波（LPF）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题4</span><span class="num">(5) </span>低通滤波（LPF）</p><div class="fmt">格式变更：段落段落样式: 单段落标题→标题4</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>73</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>片内200/400/600/800Hz，或经GPIOA13外接电容（截止频率可调）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>片内200/400/600/800Hz，或经GPIOA13外接电容（截止频率可调）</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>74</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MISC_CSACR1中4个位控制：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MISC_CSACR1中4个位控制：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>75</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位</td><td class="tcell">字段</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">RW_CSA_LPF_SEL</td><td class="tcell">0=片内电容滤波<br>1=片外电容滤波</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">RW_CSA_LPF_GPIO</td><td class="tcell">LPF外接电容通路使能</td></tr><tr class="trow-equal"><td class="tcell">[19:18]</td><td class="tcell">RW_CSA_LPF</td><td class="tcell">片内截止频率：<br>0=200Hz<br>1=400Hz<br>2=600Hz<br>3=800Hz</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位</td><td class="tcell">字段</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">[17]</td><td class="tcell">RW_CSA_LPF_SEL</td><td class="tcell">0=片内电容滤波<br>1=片外电容滤波</td></tr><tr class="trow-equal"><td class="tcell">[16]</td><td class="tcell">RW_CSA_LPF_GPIO</td><td class="tcell">LPF外接电容通路使能</td></tr><tr class="trow-equal"><td class="tcell">[19:18]</td><td class="tcell">RW_CSA_LPF</td><td class="tcell">片内截止频率：<br>0=200Hz<br>1=400Hz<br>2=600Hz<br>3=800Hz</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-43"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">43</span>
+      <span>76</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">注意事项</span><span class="num"></span>低频截止会同时拖慢过流比较器的响应（两者共用模拟通路），电流环带宽要求高时不要把LPF压得太低。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">注意事项</span><span class="num"></span>低频截止会同时拖慢过流比较器的响应（两者共用模拟通路），电流环带宽要求高时不要把LPF压得太低。</p><div class="fmt">格式变更：文字加粗: 开→继承 ×48</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-44"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">44</span>
+      <span>77</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">注意事项</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-45"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">45</span>
+      <span>78</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落标题</span><span class="num">6. </span>内部DAC</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题4</span><span class="num">(6) </span>内部DAC</p><div class="fmt">格式变更：段落段落样式: 单段落标题→标题4</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>79</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MISC_CSACR0中的DAC用于产生过流比较阈值OC_VTH：</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MISC_CSACR0中的DAC用于产生过流比较阈值OC_VTH：</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>80</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位</td><td class="tcell">字段</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">RW_CSA_DAC_EN</td><td class="tcell">DAC使能（复位值=1）</td></tr><tr class="trow-equal"><td class="tcell">[22:20]</td><td class="tcell">RW_CSA_DAC_REF</td><td class="tcell">量程：<br>0=1.2V<br>1=1.5V<br>2=2V<br>3=2.5V<br>4=3V<br>5=VDD33</td></tr><tr class="trow-equal"><td class="tcell">[31:24]</td><td class="tcell">RW_CSA_DAC_OUT</td><td class="tcell">8bit阈值码0–255</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位</td><td class="tcell">字段</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">[11]</td><td class="tcell">RW_CSA_DAC_EN</td><td class="tcell">DAC使能（复位值=1）</td></tr><tr class="trow-equal"><td class="tcell">[22:20]</td><td class="tcell">RW_CSA_DAC_REF</td><td class="tcell">量程：<br>0=1.2V<br>1=1.5V<br>2=2V<br>3=2.5V<br>4=3V<br>5=VDD33</td></tr><tr class="trow-equal"><td class="tcell">[31:24]</td><td class="tcell">RW_CSA_DAC_OUT</td><td class="tcell">8bit阈值码0–255</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>81</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>阈值换算：V_OC_VTH≈RW_CSA_DAC_OUT/256×V_DAC_REF</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>阈值换算：V_OC_VTH≈RW_CSA_DAC_OUT/256×V_DAC_REF</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>82</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>例：DAC_REF=1.2V、DAC_OUT=171，V_OC_VTH≈0.80V。</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>例：DAC_REF=1.2V、DAC_OUT=171，V_OC_VTH≈0.80V。</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>83</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>比较器方向：CSA输出&gt;OC_VTH判为过流（IR_CSA_OC_NG=1）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>比较器方向：CSA输出&gt;OC_VTH判为过流（IR_CSA_OC_NG=1）</p></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-46"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">46</span>
+      <span>84</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">单段落标题</span><span class="num">7. </span>过流比较器（OC）</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题4</span><span class="num">(7) </span>过流比较器（OC）</p><div class="fmt">格式变更：段落段落样式: 单段落标题→标题4</div></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>85</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">段落正文</span>MISC_CSACR1</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">段落正文</span>MISC_CSACR1</p></div>
+  </div>
+  
+  <div class="row kind-equal"
+       
+       data-changed="0">
+    <div class="gutter">
+      <span class="no"></span>
+      <span>86</span>
+    </div>
+    <div class="cell left"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位</td><td class="tcell">字段</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RW_CSA_OC_EN</td><td class="tcell">OC检测使能（复位值=1）</td></tr><tr class="trow-equal"><td class="tcell">[6:4]</td><td class="tcell">RW_CSA_OC_SEL</td><td class="tcell">000：csp0<br>001：csp1<br>010：csp2<br>011：(csp1+csp2+csp3)/3<br>100：vsen<br>101：vlpf<br>110：io<br>111：null</td></tr><tr class="trow-equal"><td class="tcell">[10:8]</td><td class="tcell">RW_CSA_OC_HYS</td><td class="tcell">配置OC检测迟滞：<br>000:0<br>001:13mV<br>010:24mV<br>011:33mV<br>100:41mV<br>101:48mV<br>110:54mV<br>111:59mV</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">RW_CSA_OC_NG_EN</td><td class="tcell">消抖使能</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">RW_CSA_OC_NG</td><td class="tcell">配置OC指示信号消抖时长：<br>00:0.5us<br>01:1us<br>10:2us<br>11:4us</td></tr></table></div>
+    <div class="cell right"><table class="diff-table"><tr class="trow-equal"><td class="tcell">位</td><td class="tcell">字段</td><td class="tcell">说明</td></tr><tr class="trow-equal"><td class="tcell">[0]</td><td class="tcell">RW_CSA_OC_EN</td><td class="tcell">OC检测使能（复位值=1）</td></tr><tr class="trow-equal"><td class="tcell">[6:4]</td><td class="tcell">RW_CSA_OC_SEL</td><td class="tcell">000：csp0<br>001：csp1<br>010：csp2<br>011：(csp1+csp2+csp3)/3<br>100：vsen<br>101：vlpf<br>110：io<br>111：null</td></tr><tr class="trow-equal"><td class="tcell">[10:8]</td><td class="tcell">RW_CSA_OC_HYS</td><td class="tcell">配置OC检测迟滞：<br>000:0<br>001:13mV<br>010:24mV<br>011:33mV<br>100:41mV<br>101:48mV<br>110:54mV<br>111:59mV</td></tr><tr class="trow-equal"><td class="tcell">[12]</td><td class="tcell">RW_CSA_OC_NG_EN</td><td class="tcell">消抖使能</td></tr><tr class="trow-equal"><td class="tcell">[15:14]</td><td class="tcell">RW_CSA_OC_NG</td><td class="tcell">配置OC指示信号消抖时长：<br>00:0.5us<br>01:1us<br>10:2us<br>11:4us</td></tr></table></div>
+  </div>
+  
+  <div class="row kind-modify changed"
+       id="chg-47"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">47</span>
+      <span>87</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.1.1 </span>快速验证</p></div>
+    <div class="cell right"><p class="para align-left"><span class="style-tag">标题3</span><span class="num">20.4.2 </span>快速验证</p><div class="fmt">格式变更：文字加粗: 关→继承 ×4</div></div>
+  </div>
+  
+  <div class="row kind-delete changed"
+       id="chg-48"
+       data-changed="1">
+    <div class="gutter">
+      <span class="no">48</span>
+      <span>88</span>
+    </div>
+    <div class="cell left"><p class="para align-left"><span class="style-tag">标题3</span><span class="del"></span></p></div>
+    <div class="cell right"><div class="placeholder">（该侧无内容）</div></div>
+  </div>
+  
+  
+</main>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var changed = rows.filter(function (r) { return r.dataset.changed === '1'; });
+  var pos = document.getElementById('pos');
+  var current = -1;
+  var only = document.getElementById('only-changes');
+
+  function total() { return changed.length; }
+
+  function go(index) {
+    if (!total()) return;
+    current = (index + total()) % total();
+    var target = changed[current];
+    target.classList.add('flash');
+    setTimeout(function () { target.classList.remove('flash'); }, 1200);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pos.textContent = (current + 1) + ' / ' + total();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(current + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(current - 1); });
+
+  only.addEventListener('change', function () {
+    var hide = only.checked;
+    rows.forEach(function (r) {
+      if (hide && r.dataset.changed !== '1') r.classList.add('hidden');
+      else r.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'j' || e.key === 'ArrowDown') { go(current + 1); }
+    if (e.key === 'k' || e.key === 'ArrowUp') { go(current - 1); }
+  });
+})();
+</script>
+</body>
+</html>
